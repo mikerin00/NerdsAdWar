@@ -1,0 +1,152 @@
+=========================================================
+  WAR OF DOTS — Napoleon Edition  |  Tactics Reference
+=========================================================
+
+  32 implemented AI tactics across 6 categories.
+  Each tactic is a named behaviour the AI can select based on
+  personality, detected player behaviour, and battlefield state.
+
+
+=========================================================
+  OFFENSIEVE TACTIEKEN  (12)
+=========================================================
+
+  BLITZKRIEG
+    Cavalry charget direct op zwakste vijand; infantry volgt op volle snelheid.
+
+  PINCER
+    Twee vleugels convergeren gelijktijdig vanuit noord en zuid.
+
+  FEINT_STRIKE
+    Schijnaanval op een kant (2 ticks), daarna harde commit op de andere.
+
+  CAVALRY_RAID
+    Alle cavalry naar vijandelijke OPs en HQ; infantry rukt gestaag op.
+
+  ENCIRCLEMENT
+    Drie groepen proberen de speler te omsingelen vanuit drie richtingen.
+
+  DOUBLE_ENVELOP
+    Beide flanken vallen tegelijk aan; centrum houdt positie.
+
+  ECHELON
+    Diagonale trapsgewijze opmars: elke unit versprongen in X en Y.
+
+  CENTER_PUSH
+    Harde doorbraak door het centrum; flanken worden genegeerd.
+
+  HAMMER_AND_ANVIL
+    Infantry fixeert frontaal (aambeeld); cavalry slaat in de flank (hamer).
+
+  DOUBLE_OP_PRESSURE
+    Bedreig twee speler-OPs tegelijk om verdediging te splitsen.
+
+  FEIGNED_RETREAT
+    Nep-terugtrekking om speler uit positie te lokken, dan counter-charge.
+
+  CAVALRY_EXPLOIT
+    Infantry pinnt front; cavalry gaat door gaten in de linie om artillery/HQ te raken.
+
+
+=========================================================
+  DEFENSIEVE TACTIEKEN  (11)
+=========================================================
+
+  SIEGELINE
+    Lange verdedigingslinie op het beste terrein; straf elke nadering.
+
+  REFUSE_FLANK
+    Een flank defensief; andere flank concentreert voor aanval.
+
+  STEAMROLLER
+    Langzame, methodische opmars als volle linie; iedereen beweegt samen.
+
+  HILL_CONTROL
+    Bezet heuvels voordat je aanvalt; vuur omlaag vanuit hoge positie.
+
+  COUNTERATTACK
+    Houd verdedigingslinie; wanneer speler die kruist, harde tegenaanval.
+
+  BRIDGE_CONTROL
+    Artillery bestookt brugverdedigers eerst; infantry rukt op zodra het veilig is.
+    Twee fasen: bridge hot (houd terug) en bridge clear (bezet bruggen).
+
+  SKIRMISH_SCREEN
+    Cavalry screen verkent vooruit; infantry wacht op hoog terrein.
+
+  ATTRITION
+    Blijf op artillerie-afstand; laat kanonnen het werk doen.
+
+  ARTILLERY_DOM
+    Duw artillery naar dominante heuvelposities; infantry schermt op afstand.
+
+  GUERRILLA
+    Kleine groepen vallen aan vanuit bos/heuvels; trekken terug bij schade.
+
+  DEFENSE_IN_DEPTH
+    Twee gestaffelde linies: voorste schermutselaars, achterste reserve.
+    Reserve valt aan zodra vijand door de eerste linie breekt.
+
+
+=========================================================
+  SUPPLY & OUTPOST-TACTIEKEN  (3)
+=========================================================
+
+  SUPPLY_EDGE_PRESSURE
+    Vecht net buiten vijandelijke supply-radius waar hun morale sneller daalt.
+
+  OP_ISOLATION
+    Positioneer tussen vijandelijk leger en hun dichtstbijzijnde OP.
+
+  DOUBLE_OP_PRESSURE
+    (Zie Offensieve Tactieken — werkt ook als supply-tactiek)
+
+
+=========================================================
+  ARTILLERIE & SPECIALE TACTIEKEN  (4)
+=========================================================
+
+  GRAND_BATTERY
+    Masseer artillerievuur op het zwakste vijandelijke cluster; infantry schermt.
+
+  COUNTER_BATTERY
+    Eigen artillery richt specifiek op vijandelijke kanonnen.
+    Cavalry jaagt op vijandelijke artillery. Infantry houdt screen-linie.
+
+  COMBINED_ARMS
+    Gefaseerde aanval: tick 0-1 artillerie-voorbereiding,
+    tick 2-3 infantry opmars, tick 4+ cavalry charge op de flanken.
+
+  FOREST_DELAY
+    Positioneer in bossen voor 25% damage reduction. Vecht alleen vanuit dekking.
+    Goed voor vertragingsgevechten als de AI in de minderheid is.
+
+
+=========================================================
+  SURVIVAL-TACTIEKEN  (3)
+=========================================================
+
+  DELAYING_ACTION
+    Gecontroleerde trapsgewijze terugtocht; vecht alleen wanneer ingesloten.
+
+  CONTACT_AND_FADE
+    Korte aanval, dan terugtrekken, herhalen. Drain zonder commitment.
+
+  MOBILE_SUPPLY_BUBBLE
+    Compact bij eigen supply blijven. Moreel herstellen, strak verdedigen.
+
+
+=========================================================
+  TOEKOMSTIGE TACTIEKEN  (optioneel, lage prioriteit)
+=========================================================
+
+  Deze tactieken zijn realistisch implementeerbaar maar nog niet gebouwd:
+
+  SUPPLY_CORRIDOR_CONTROL
+    Blokkeer de strook terrein tussen vijand en hun dichtstbijzijnde OP.
+
+  OP_OVEREXTENSION_TRAP
+    Laat een OP veroveren, val dan aan terwijl vijand buiten supply staat.
+
+  RIVER_CUTOFF
+    Lok vijand de rivier over, blokkeer dan de oversteek = supply cut.

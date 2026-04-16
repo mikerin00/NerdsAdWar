@@ -1,0 +1,187 @@
+War of Dots - Napoleon Edition
+Project Structure
+=================
+
+war_of_dots/
+|-- main.py                         Entry point: detects monitor resolution, sets constants,
+|                                   launches Game with a random seed
+|-- structure.txt                   This file — documents the project layout and responsibilities
+|-- tactics.txt                     Napoleon-era tactic reference (Dutch)
+|-- tactics_counters.txt            Counter-doctrine design doc per tactic category (Dutch)
+|
++-- src/
+    |-- constants.py                Game-wide constants: screen size, FPS, colors, unit stats
+    |                               SCREEN_WIDTH/HEIGHT = actual monitor size (set by main.py)
+    |                               MAP_WIDTH/HEIGHT = 1920×1080 logical map (larger than screen)
+    |
+    +-- entities/                   Game objects (data + logic, no drawing)
+    |   |-- effect.py               Effect: visual particles (explosion, smoke, slash, impact)
+    |   |-- headquarters.py         Headquarters: capturable objective, win condition trigger
+    |   |-- outpost.py              Outpost: neutral capturable supply station, control [-1..+1]
+    |   |-- projectile.py           Projectile: musket balls and cannonballs in flight + splash
+    |   |-- terrain.py              TerrainMap: biome selection, heightmap, forest, rivers, lakes,
+    |   |                           rocks, bridges, A* pathfinding, surface render
+    |   |                           8 biomes: GRASSLAND, RIVER_VALLEY, LAKELANDS, HIGHLANDS,
+    |   |                                     FOREST, MIXED, DRY_PLAINS, WETLANDS
+    |   |                           Each biome controls: river presence, lake/rock thresholds,
+    |   |                           forest density, highland threshold, min obstacle patch size
+    |   |                           Validation: BFS checks left→right passable corridor exists
+    |   |-- terrain_helpers.py      Terrain constants + helpers:
+    |   |                           smoothNoise, chaikin, distToSeg, floodFill,
+    |   |                           filterSmallPatches, astarGrid, simplifyPath
+    |   +-- unit.py                 Unit: movement, combat, morale, formation, supply mechanics
+    |
+    +-- game/                       Game systems (orchestration, input, rendering, AI)
+        |
+        |-- game.py                 Game class: main loop, update, spawn, supply, win condition
+        |                           Uses MAP_WIDTH/HEIGHT for terrain; pre-scales to screen
+        |                           Inherits: EventsMixin, FormationMixin, RendererMixin
+        |-- events.py               EventsMixin: keyboard/mouse input, selection, move/attack commands
+        |-- formation.py            FormationMixin: path smoothing, formation line, infantry square
+        |-- renderer.py             RendererMixin: draw orchestration (terrain, territory, UI, overlays)
+        |                           Draws in map space, scales to screen via _mapScale
+        |-- renderer_draw.py        Standalone draw functions: drawUnit, drawOutpost, drawHeadquarters
+        |                           Also: geometry helpers (chaikin, simplify) for territory borders
+        |
+        |-- ai.py                   EnemyAI: personality init, terrain-aware tactic weighting,
+        |                           tactic evaluation, execution dispatch, sub-tick behaviors
+        |                           Sub-tick: _pullbackWounded, _avoidDangerZones,
+        |                                     _refreshCombat, _coordinateWaves, _assessLocalFights
+        |                           Inherits: BattleRolesMixin, OffensiveTacticsMixin,
+        |                                     DefensiveTacticsMixin, SpecialTacticsMixin
+        |-- ai_data.py              Personality weights, trait tables, counter map, avoidance map
+        |                           BIOME_MODIFIERS: per-biome tactic weight adjustments
+        |                           TERRAIN_TRAIT_BONUSES: dynamic bonuses from terrain analysis
+        |-- ai_detector.py          PlayerDetector: classifies player behaviour (10 flags + decay)
+        |                           Flags: CAVALRY_FORWARD, WIDE_LINE, ARTILLERY_FORWARD,
+        |                                  PLAYER_ADVANCING, PLAYER_HOLDING, PLAYER_FLANKING,
+        |                                  PLAYER_IN_SQUARE, SUPPLY_DEPENDENT, OP_RAIDING,
+        |                                  RIVER_DEFENSE
+        |-- ai_helpers.py           Shared AI utilities: distance, centroid, routing, terrain scoring
+        |                           _routeSafe / _moveToSafe now check isPassable (river+lake+rock)
+        |                           analyzeTerrain(): openness, forest/hill/water/rock coverage,
+        |                                            has_river, chokepoints list
+        |-- ai_roles.py             BattleRolesMixin: HQ guard, artillery, reinforce, fallback
+        |-- ai_tactics_offense.py   OffensiveTacticsMixin: 12 aggressive tactics
+        |                           (Blitzkrieg, Pincer, Feint Strike, Cavalry Raid, Encirclement,
+        |                            Double Envelop, Echelon, Center Push, Hammer & Anvil,
+        |                            Double OP, Feigned Retreat, Cavalry Exploit)
+        |-- ai_tactics_defense.py   DefensiveTacticsMixin: 11 defensive tactics
+        |                           (Siegeline, Refuse Flank, Steamroller, Hill Control,
+        |                            Counterattack, Bridge Control, Skirmish Screen, Attrition,
+        |                            Artillery Dom, Defense in Depth, Guerrilla)
+        +-- ai_tactics_special.py   SpecialTacticsMixin: 9 special/survival tactics
+                                    (Grand Battery, Supply Edge, OP Isolation,
+                                     Counter Battery, Forest Delay Zone, Combined Arms,
+                                     Delaying Action, Contact & Fade, Mobile Supply Bubble)
+
+
+Game architecture:
+------------------
+  Game (game.py)
+    |-- inherits EventsMixin (events.py)         keyboard/mouse input
+    |-- inherits FormationMixin (formation.py)    formation commands
+    |-- inherits RendererMixin (renderer.py)      all drawing
+    |-- owns EnemyAI (ai.py)                      AI controller
+    |      |-- inherits BattleRolesMixin          always-on battlefield roles
+    |      |-- inherits OffensiveTacticsMixin      12 offensive tactics
+    |      |-- inherits DefensiveTacticsMixin      11 defensive tactics
+    |      |-- inherits SpecialTacticsMixin        9 special/survival tactics
+    |      +-- owns PlayerDetector (ai_detector.py)
+    |-- owns TerrainMap (terrain.py)              procedural terrain + pathfinding
+    |-- owns Unit[] (unit.py)                     all units on the field
+    |-- owns Projectile[] (projectile.py)         in-flight projectiles
+    |-- owns Effect[] (effect.py)                 visual particles
+    |-- owns Headquarters[] (headquarters.py)     2x capturable HQ
+    +-- owns Outpost[] (outpost.py)               up to 9 neutral outposts
+
+
+Data flow:
+----------
+  main.py  -->  detects screen size  -->  sets constants  -->  Game(random seed)
+  Game.__init__  -->  TerrainMap(MAP_WIDTH, MAP_HEIGHT)  -->  pre-scale surface
+                  -->  _spawnUnits  -->  EnemyAI  -->  analyzeTerrain  -->  _applyTerrainWeights
+
+  Game.run()     -->  _handleEvents  -->  _update  -->  _draw  (60 fps loop)
+
+  _update:  freezeTimer (60s planning) --> dead removal --> unit.update
+            --> projectile.update --> effect.update --> outpost.update
+            --> _computeSupply --> ai.update --> _checkWinCondition
+
+  AI each tick (100 frames / ~1.7s):
+    Sub-tick (every frame): _pullbackWounded, _avoidDangerZones,
+                            _refreshCombat, _coordinateWaves, _assessLocalFights
+    Per tick: _evaluateTactic (every 3 ticks) --> _execute(currentTactic)
+    Always-on roles: _doGuardHq, _doArtillery, _doReinforce, _doFallback
+
+  Terrain generation per game:
+    rng.choice(biome)  -->  _generate (heightmap + forest + rivers? + lakes? + rocks?)
+    _validatePath (BFS left→right)  -->  retry up to 40x if blocked
+    -->  _buildRiverGrid  -->  _buildPassGrid (lazy, for A*)
+
+
+Terrain system:
+---------------
+  Biome    | River | Lakes | Rocks | Forest | Notes
+  ---------|-------|-------|-------|--------|-------------------------------
+  GRASSLAND| no    | no    | no    | sparse | Open field, few obstacles
+  RIVER_VAL| yes   | rare  | rare  | dense  | Classic river crossing scenario
+  LAKELANDS| no    | many  | rare  | med    | Lake barriers dominate
+  HIGHLANDS| no    | rare  | many  | med    | Rocky high ground
+  FOREST   | yes   | rare  | rare  | heavy  | Dense forest with river
+  MIXED    | yes   | med   | med   | med    | Varied, balanced map
+  DRY_PLAIN| no    | no    | med   | sparse | Open rocks, no water
+  WETLANDS | yes   | many  | no    | dense  | Many lakes, river, forest
+
+  Obstacles (lakes, rocks): impassable (speedMultiplier = 0.0)
+  River: passable but very slow (speedMultiplier = 0.15), bridges = full speed
+  A* pathfinding (coarse 80px grid): used by findPath() for AI/unit routing
+
+
+Unit army composition (per side):
+---------------------------------
+  20 infantry        (2 columns of 10)
+   5 heavy infantry  (behind infantry, push through)
+   5 cavalry         (forward group)
+   2 artillery       (rear, vertically centred)
+  = 32 units per side, 64 total
+
+
+Map layout:
+-----------
+  Logical map: 1920×1080 px (MAP_WIDTH × MAP_HEIGHT)
+  Screen:      monitor native resolution (set at startup)
+  Scaling:     map rendered to offscreen surface, scaled to fit screen
+  Player spawns LEFT  (low X),  enemy spawns RIGHT (high X)
+  HQ at x=65 (player) and x=MAP_WIDTH-65 (enemy)
+  Spawn safe zones: 22% of map width on each side (no obstacles)
+  1 centre outpost + up to 4 symmetric pairs = max 9 outposts
+  Outposts avoid: rivers, forests, lakes, rocks, map edges
+
+
+Coding standards:
+-----------------
+- All code written in English
+- No file exceeds 300 lines
+- Each file has a single logical responsibility
+- camelCase for functions and variables (e.g. unitType, attackRange, loseMorale)
+- ALL_CAPS for constants (e.g. MAP_WIDTH, UNIT_COLORS)
+- Files grouped into folders by domain: entities/ and game/
+- Module header comment at the top of each file
+
+
+Key design patterns:
+--------------------
+- Mixin pattern: EventsMixin, FormationMixin, RendererMixin combined into Game
+  via multiple inheritance so each concern lives in its own file but shares state
+  through 'self'. Same pattern for EnemyAI with its tactic mixins.
+- drawUnit() is a standalone function — keeps drawing logic out of the Unit class
+  (separation of data and presentation)
+- Circular imports avoided via local imports inside methods (e.g. Projectile in
+  unit.py is imported inside _fireVolley and _executeAttack)
+- AI uses personality-weighted tactic selection with a counter-map that reacts
+  to detected player behaviour (10 behavioural flags with decay)
+- Biome-aware AI: tactic weights shift at startup based on terrain analysis
+  (chokepoints, open space, forest/water/rock coverage)
+- Terrain validation loop: regenerates up to 40x until a passable left→right
+  corridor exists, guaranteeing every map is playable

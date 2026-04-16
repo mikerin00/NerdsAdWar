@@ -1,0 +1,9 @@
+Nerds ad War — AI Decision Log
+==================================================
+
+[    0.0s  f    0]  Personality: AGGRESSIVE  |  Biome: TWIN_RIVERS  |  Chokepoints: 0 (own:0 mid:0 foe:0)  |  Difficulty: NORMAAL
+[    0.0s  f    0]  Terrain: open=45% forest=26% hills=29% water=0% rocks=0%
+[    0.0s  f    0]  Opening tactic: ATTRITION
+[   27.1s  f 1629]  SWITCH (counter_pressure): ATTRITION -> DOUBLE_OP_PRESSURE  detected:[ARTILLERY_FORWARD,SUPPLY_DEPENDENT]
+
+Total entries: 4

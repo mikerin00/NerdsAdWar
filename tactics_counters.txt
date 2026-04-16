@@ -1,0 +1,145 @@
+=========================================================
+  WAR OF DOTS — Napoleon Edition  |  Counter-Doctrine
+=========================================================
+
+  Hoe dit document te lezen:
+
+  Elke sectie beschrijft een gedetecteerd spelersgedrag en welke
+  AI-tactieken dat gedrag het beste counteren. De AI gebruikt deze
+  mapping via COUNTER_MAP in ai_data.py.
+
+    COUNTER         Tactieken die een bonus krijgen bij detectie
+    VERMIJD         Tactieken die onderdrukt worden (weight -> 1)
+
+
+=========================================================
+  1. CAVALRY_FORWARD
+  (Speler cavalry is vooruit geschoven t.o.v. infantry)
+=========================================================
+
+  Counter:  SIEGELINE, HILL_CONTROL, REFUSE_FLANK, SKIRMISH_SCREEN
+  Vermijd:  -
+
+  Reden: charge opvangen met een geprepareerde linie op goed terrein.
+
+
+=========================================================
+  2. WIDE_LINE
+  (Speler units spreiden over >65% van de kaarthoogte)
+=========================================================
+
+  Counter:  CENTER_PUSH, GRAND_BATTERY, HAMMER_AND_ANVIL, FEINT_STRIKE
+  Vermijd:  -
+
+  Reden: dunne linie doorbreken in het centrum of concentreren op een punt.
+
+
+=========================================================
+  3. ARTILLERY_FORWARD
+  (Speler artillery staat dicht bij of voor de infantry linie)
+=========================================================
+
+  Counter:  ENCIRCLEMENT, FEINT_STRIKE, GRAND_BATTERY, CONTACT_AND_FADE
+  Vermijd:  -
+
+  Reden: omsingelen of counter-battery; niet blind erop af rennen.
+
+
+=========================================================
+  4. PLAYER_ADVANCING
+  (Speler centroid beweegt richting AI)
+=========================================================
+
+  Counter:  COUNTERATTACK, BRIDGE_CONTROL, REFUSE_FLANK, ATTRITION
+  Vermijd:  -
+
+  Reden: laat ze komen, sla toe als ze overcommit zijn.
+
+
+=========================================================
+  5. PLAYER_HOLDING
+  (Speler beweegt nauwelijks — defensieve houding)
+=========================================================
+
+  Counter:  SUPPLY_EDGE_PRESSURE, DOUBLE_OP_PRESSURE, ARTILLERY_DOM, OP_ISOLATION
+  Vermijd:  -
+
+  Reden: forceer beweging via supply-druk of outpost-aanvallen.
+
+
+=========================================================
+  6. PLAYER_FLANKING
+  (>60% van speler units geconcentreerd in een verticale helft)
+=========================================================
+
+  Counter:  REFUSE_FLANK, PINCER, DOUBLE_ENVELOP, CENTER_PUSH
+  Vermijd:  -
+
+  Reden: geweigerde flank op hun sterke kant, aanval op de zwakke.
+
+
+=========================================================
+  7. PLAYER_IN_SQUARE
+  (Speler infantry staat in square formatie)
+=========================================================
+
+  Counter:  GRAND_BATTERY, ATTRITION, ARTILLERY_DOM, SKIRMISH_SCREEN
+  Vermijd:  -
+
+  Reden: squares zijn zwak tegen artillery (1.5x damage). Nooit met
+  cavalry aanvallen (0.3x damage).
+
+
+=========================================================
+  8. SUPPLY_DEPENDENT
+  (Speler units geclusterd binnen 250px van eigen supply)
+=========================================================
+
+  Counter:  OP_ISOLATION, DOUBLE_OP_PRESSURE, SUPPLY_EDGE_PRESSURE
+  Vermijd:  -
+
+  Reden: snij ze af van supply, of vecht net buiten hun radius.
+
+
+=========================================================
+  9. RIVER_DEFENSE
+  (Speler units langs de rivier als verdedigingslinie)
+=========================================================
+
+  Counter:  BRIDGE_CONTROL, ARTILLERY_DOM, FEINT_STRIKE, GRAND_BATTERY
+  Vermijd:  STEAMROLLER, BLITZKRIEG, HAMMER_AND_ANVIL, CENTER_PUSH, PINCER
+
+  Reden: nooit frontaal een verdedigde rivier oversteken. Gebruik
+  bruggen of artillerie om de verdediging te verzwakken.
+
+
+=========================================================
+  10. FORTIFIED_RIVER
+  (Rivier-defensie + artillery erachter — sterkste speler-positie)
+=========================================================
+
+  Counter:  COUNTER_BATTERY, GRAND_BATTERY, BRIDGE_CONTROL, ARTILLERY_DOM,
+            COMBINED_ARMS, FEINT_STRIKE
+  Vermijd:  CAVALRY_RAID, BLITZKRIEG, STEAMROLLER, CENTER_PUSH,
+            HAMMER_AND_ANVIL, PINCER, ENCIRCLEMENT, DOUBLE_ENVELOP
+
+  Reden: vernietig eerst hun kanonnen met eigen artillery (counter-battery).
+  Stuur daarna infantry via de brug zodra het gebied verzwakt is.
+  Nooit cavalry of infantry frontaal sturen — wordt afgeslacht.
+
+
+=========================================================
+  HOE DE AI DIT TOEPAST
+=========================================================
+
+  1. PlayerDetector classificeert spelersgedrag (10 flags met decay)
+  2. COUNTER_MAP geeft bonus-weights aan tactieken die het gedrag counteren
+  3. TACTIC_AVOIDANCE onderdrukt tactieken die in de val zouden lopen
+  4. Personality weights + counter bonuses worden gecombineerd
+  5. Gewogen random selectie kiest de volgende tactiek
+
+  Score-modifiers bij evaluatie:
+    +bonus   Binnen eigen supply-radius
+    -malus   Buiten eigen supply-radius
+    +bonus   Terrain synergy (heuvel, bos, brug)
+    +bonus   Morale advantage ten opzichte van vijand
