@@ -20,6 +20,17 @@ from src.game.menu._common import (
 # ── Changelog ─────────────────────────────────────────────────────────────
 # Add a new key here for every release that has player-facing changes.
 CHANGELOG = {
+    "v1.27": [
+        "Waves: artillery deploys and fires — no more marching straight past your line",
+        "Waves: enemy AI pushes aggressively instead of clustering at bridges",
+        "Waves: faster escalation — cavalry appears from wave 2, heavy infantry from wave 3",
+        "Multiplayer: wave number now visible for all players, not just the host",
+        "Multiplayer: cannon, musket, and cavalry sounds now play for joined players",
+        "Multiplayer: Settings now accessible from the pause menu mid-game",
+        "Per-player unit cap of 40 — each player manages their own army in team modes",
+        "Performance: unit simulation much faster when many troops are on screen",
+        "Bug report screen: messages now reliably delivered to Discord",
+    ],
     "v1.25": [
         "Waves (Coop) added to multiplayer — survive enemy waves together with up to 4 players",
         "2v2 partial lobby: start with fewer than 4 players, solo player commands the full team army",
