@@ -707,7 +707,7 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
         ('artillery',      0.05),
     )
 
-    _PER_PLAYER_CAP = 55
+    _PER_PLAYER_CAP = 40
 
     def _teamCap(self, team: str) -> int:
         """Max units a team is allowed to field at once (single-player / COOP).
