@@ -170,7 +170,7 @@ class Unit:
         audio.play_sfx('musket')
 
     # --- per-frame update ---
-    def update(self, allUnits, projectiles, effects, terrain=None):
+    def update(self, allUnits, projectiles, effects, terrain=None, enemies=None):
         self._terrain = terrain   # store for this frame's combat/movement use
 
         if self.attackTarget and self.attackTarget.hp <= 0:
@@ -182,25 +182,32 @@ class Unit:
         if self.routing and self.morale > 45:
             self.routing = False
 
+        # Pre-compute nearest enemy once for this frame (passed in by game loop)
+        _foes    = enemies if enemies is not None else [u for u in allUnits if u.team != self.team]
+        _nearest = min(_foes, key=self.distanceTo) if _foes else None
+
         # Shield wall: active when a friendly heavy infantry is within 30px
         if self.unitType == 'heavy_infantry':
-            self.shieldWall = any(u is not self and u.team == self.team
-                                  and u.unitType == 'heavy_infantry'
-                                  and math.hypot(self.x - u.x, self.y - u.y) < 30
-                                  for u in allUnits)
+            grid = _getSpatialGrid(allUnits)
+            cell = _GRID_CELL
+            gx, gy = int(self.x) // cell, int(self.y) // cell
+            self.shieldWall = any(
+                u is not self and u.team == self.team and u.unitType == 'heavy_infantry'
+                and math.hypot(self.x - u.x, self.y - u.y) < 30
+                for nx in range(gx - 1, gx + 2) for ny in range(gy - 1, gy + 2)
+                for u in grid.get((nx, ny), ())
+            )
 
         # Out-of-combat healing: slow HP regen when no enemy is nearby
         if self.hp < self.maxHp:
-            enemy = self.nearestEnemy(allUnits)
-            safe  = not enemy or self.distanceTo(enemy) > 280
+            safe = not _nearest or self.distanceTo(_nearest) > 280
             if safe and self.supplyStrength > 0:
                 healRate = 0.004 + 0.016 * self.supplyStrength  # 0.24..1.2 HP/s at 60fps
                 self.hp  = min(self.maxHp, self.hp + healRate)
 
         if self.routing:
-            enemy = self.nearestEnemy(allUnits)
-            if enemy:
-                dx, dy = self.x - enemy.x, self.y - enemy.y
+            if _nearest:
+                dx, dy = self.x - _nearest.x, self.y - _nearest.y
                 result = self._steer(dx, dy, self.speed * 1.5)
                 if result:
                     self.x, self.y = result
@@ -212,7 +219,7 @@ class Unit:
             self.reformTimer -= 1; return
 
         if self.inSquare:
-            focus = self.attackTarget or self.nearestEnemy(allUnits)
+            focus = self.attackTarget or _nearest
             if focus and self.distanceTo(focus) <= self.attackRange:
                 self._rotateTowards(self._angleTo(focus.x, focus.y))
                 self.attackCooldown -= 1
@@ -235,7 +242,7 @@ class Unit:
                     self.deployTimer = min(90, self.deployTimer + 1)
                     self.deployed    = self.deployTimer >= 90
 
-        focus = self.attackTarget or self.nearestEnemy(allUnits)
+        focus = self.attackTarget or _nearest
         if focus:
             dist = self.distanceTo(focus)
             if dist <= self.attackRange:

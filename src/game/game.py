@@ -1346,8 +1346,13 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
         self.units         = [u for u in self.units         if u.hp > 0]
         self.selectedUnits = [u for u in self.selectedUnits if u.hp > 0]
 
+        # Pre-split by team once — avoids O(n) filter inside every unit's update()
+        _player_units = [u for u in self.units if u.team == 'player']
+        _enemy_units  = [u for u in self.units if u.team == 'enemy']
+        _team_foes    = {'player': _enemy_units, 'enemy': _player_units}
         for u in self.units:
-            u.update(self.units, self.projectiles, self.effects, self.terrain)
+            u.update(self.units, self.projectiles, self.effects, self.terrain,
+                     enemies=_team_foes.get(u.team))
         self._applyCommanderAura()
         for p in self.projectiles:
             p.update(self.effects, self.units)
@@ -1361,11 +1366,15 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
         self._updateOutpostSpawns()
         self._tickBattleBanner()
         self._tickPings()
-        self._computeSupply()
-        if self.ai is not None:
-            self.ai.update()
-        for _bai in self.botAIs:
-            _bai.update()
+        # Supply recalculated every 20 frames — values change slowly
+        if self._frameCount % 20 == 0:
+            self._computeSupply()
+        # AI runs every other frame — decisions at 30 Hz is indistinguishable from 60 Hz
+        if self._frameCount % 2 == 0:
+            if self.ai is not None:
+                self.ai.update()
+            for _bai in self.botAIs:
+                _bai.update()
 
         if self.winner is None:
             self._checkWinCondition()
