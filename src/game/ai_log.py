@@ -39,7 +39,7 @@ def aiLogAll():
 def aiLogWrite(path='ai_log.txt'):
     """Write the full log to a text file."""
     with open(path, 'w', encoding='utf-8') as f:
-        f.write("Nerds ad War — AI Decision Log\n")
+        f.write("Nerds at War — AI Decision Log\n")
         f.write("=" * 50 + "\n\n")
         for frame, msg, count in _entries:
             secs = frame / 60

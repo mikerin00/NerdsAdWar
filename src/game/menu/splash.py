@@ -1,5 +1,5 @@
 # Module: menu.splash
-# SplashScreen — press-any-key intro for Nerds ad War
+# SplashScreen — press-any-key intro for Nerds at War
 
 import pygame
 
@@ -49,7 +49,7 @@ class SplashScreen:
 
         # Title
         title_font = _font(92, bold=True)
-        title = "WAR OF DOTS"
+        title = "NERDS AT WAR"
         tw = title_font.size(title)[0]
         _renderShadow(surf, title, title_font, _GOLD_LIGHT,
                       cx - tw // 2, cy - 120, offset=3)
@@ -59,14 +59,14 @@ class SplashScreen:
         # Blinking "press to play"
         if (t // 35) % 2 == 0:
             hint_font = _font(22)
-            hint = "— Druk op een toets om te beginnen —"
+            hint = "— Press any key to begin —"
             hw = hint_font.size(hint)[0]
             _renderShadow(surf, hint, hint_font, _MUTED,
                           cx - hw // 2, cy + 50, offset=1)
 
         # Version / flavour text at bottom
         small = _font(15)
-        flavour = "Beheers het slagveld  ·  Versla de vijand  ·  Schrijf geschiedenis"
+        flavour = "Command the battlefield  ·  Defeat your enemy  ·  Write history"
         fw = small.size(flavour)[0]
         surf.blit(small.render(flavour, True, _DIM), (cx - fw // 2, SCREEN_HEIGHT - 32))
 

@@ -4,7 +4,7 @@
 SCREEN_WIDTH  = 1280
 SCREEN_HEIGHT = 720
 FPS           = 60
-TITLE         = "Nerds ad War"
+TITLE         = "Nerds at War"
 
 # Logical map size — larger than the screen; rendered scaled-to-fit
 MAP_WIDTH  = 1920
@@ -53,7 +53,7 @@ EMOTE_TEXTS = ["GG", "WP", "?!", "Help!", ":)", ">:("]
 # Single source of truth for match-mode → slot count. Used by the lobby
 # (server slot caps, UI layout, default-colour table) and by Game (slot ↔
 # side mapping, spawn scaling, controller assignment).
-MODE_SLOT_COUNT = {'1v1': 2, 'COOP': 2, '2v2': 4, '3v3': 6, '4v4': 8}
+MODE_SLOT_COUNT = {'1v1': 2, 'COOP': 4, '2v2': 4, '3v3': 6, '4v4': 8}
 
 def slotCountForMode(mode):
     return MODE_SLOT_COUNT.get(mode, 2)
@@ -68,14 +68,14 @@ def teamOfSlot(slot, mode):
 
 
 PLAYER_COLORS = [
-    ('BLAUW',    (40,  100, 230)),   # deep saturated blue (was te zacht, leek op turkoois)
-    ('ROOD',     (215,  45,  55)),   # zuiver rood (minder oranje-zweem)
-    ('GROEN',    (50,  175,  70)),   # zuiver groen
-    ('GEEL',     (245, 220,  50)),   # helder geel (verder van oranje af)
-    ('PAARS',    (130,  55, 195)),   # diepere violet (verder van roze af)
-    ('ORANJE',   (245, 125,  20)),   # vol oranje (verder van rood/geel af)
-    ('TURKOOIS', (40,  205, 215)),   # cyaan-aqua (duidelijk losser van blauw)
-    ('ROZE',     (240,  90, 180)),   # magenta-roze (verder van paars af)
+    ('BLUE',   (40,  100, 230)),
+    ('RED',    (215,  45,  55)),
+    ('GREEN',  (50,  175,  70)),
+    ('YELLOW', (245, 220,  50)),
+    ('PURPLE', (130,  55, 195)),
+    ('ORANGE', (245, 125,  20)),
+    ('TEAL',   (40,  205, 215)),
+    ('PINK',   (240,  90, 180)),
 ]
 
 def unitColorFromBase(base, unitType):

@@ -6,6 +6,7 @@ import math
 import pygame
 
 from src.constants import SCREEN_WIDTH, SCREEN_HEIGHT
+from src import keybinds as KB
 
 
 class EventsMixin:
@@ -37,34 +38,32 @@ class EventsMixin:
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     self._paused = True
-                elif event.key == pygame.K_f:
+                elif event.key == KB.get('carre'):
                     self._cmdToggleSquare()
-                elif event.key == pygame.K_l:
+                elif event.key == KB.get('ai_log'):
                     self.showAiLog = not getattr(self, 'showAiLog', False)
-                elif event.key == pygame.K_SPACE:
+                elif event.key == KB.get('start_gevecht'):
                     if self.freezeTimer > 0:
                         self.issueCommand('rdy', {})
-                elif event.key in (pygame.K_1, pygame.K_2, pygame.K_3,
-                                   pygame.K_4, pygame.K_5, pygame.K_6):
-                    if getattr(self, '_emoteBarOpen', False):
-                        self._cmdEmote(event.key - pygame.K_1)
-                    elif event.key in (pygame.K_1, pygame.K_2,
-                                       pygame.K_3, pygame.K_4):
-                        add = bool(pygame.key.get_mods() & pygame.KMOD_SHIFT)
-                        self._selectByCategory(event.key, additive=add)
-                elif event.key == pygame.K_v:
+                elif getattr(self, '_emoteBarOpen', False) and pygame.K_1 <= event.key <= pygame.K_6:
+                    self._cmdEmote(event.key - pygame.K_1)
+                elif event.key in (KB.get('sel_all'), KB.get('sel_inf'), KB.get('sel_cav'),
+                                   KB.get('sel_heavy'), KB.get('sel_art')):
+                    add = bool(pygame.key.get_mods() & pygame.KMOD_SHIFT)
+                    self._selectByCategory(event.key, additive=add)
+                elif event.key == KB.get('ping'):
                     mx, my = self._screenToMap(*pygame.mouse.get_pos())
                     self._cmdPing(mx, my)
-                elif event.key == pygame.K_b:
+                elif event.key == KB.get('battleplan'):
                     self._planMode = True
-                elif event.key == pygame.K_t:
+                elif event.key == KB.get('emote'):
                     self._emoteBarOpen = True
 
             elif event.type == pygame.KEYUP:
-                if event.key == pygame.K_b:
+                if event.key == KB.get('battleplan'):
                     self._planMode      = False
                     self._planDragStart = None
-                elif event.key == pygame.K_t:
+                elif event.key == KB.get('emote'):
                     self._emoteBarOpen = False
 
             elif event.type == pygame.MOUSEBUTTONDOWN:
@@ -89,7 +88,7 @@ class EventsMixin:
                         clickedFoe = next(
                             (u for u in self.units
                              if u.team == self._foeSide
-                             and math.hypot(u.x - mx, u.y - my) <= u.radius + 8),
+                             and math.hypot(u.x - mx, u.y - my) <= u.radius + 16),
                             None
                         )
                         if clickedFoe:
@@ -147,17 +146,15 @@ class EventsMixin:
         return [u for u in self.units
                 if getattr(u, 'controller', -1) == self.mySlot]
 
-    # Hotkey → unit-type set. Light + heavy infantry are one category so
-    # players don't have to remember they're separate types.
-    _CATEGORY_KEYS = {
-        pygame.K_1: {'infantry', 'heavy_infantry'},
-        pygame.K_2: {'cavalry'},
-        pygame.K_3: {'artillery'},
-        pygame.K_4: {'infantry', 'heavy_infantry', 'cavalry', 'artillery'},
-    }
-
     def _selectByCategory(self, key, additive=False):
-        types = self._CATEGORY_KEYS.get(key)
+        cat_map = {
+            KB.get('sel_all'):   {'infantry', 'heavy_infantry', 'cavalry', 'artillery'},
+            KB.get('sel_inf'):   {'infantry'},
+            KB.get('sel_cav'):   {'cavalry'},
+            KB.get('sel_heavy'): {'heavy_infantry'},
+            KB.get('sel_art'):   {'artillery'},
+        }
+        types = cat_map.get(key)
         if not types:
             return
         if not additive:

@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Build / distribution
+dist/
+build/
+nuitka-crash-report.xml
+
+# Executables
+*.exe
+*.msi
+
+# Runtime files generated next to the exe
+settings.json
+keybinds.json
+campaign_progress.json
+tutorial_progress.json
+crash.log
+ai_log.txt
+
+# Media / large assets not needed in source control
+assets/audio/music_menu_custom.mpeg
+assets/audio/music_menu_v2.wav
+WhatsApp*.mpeg

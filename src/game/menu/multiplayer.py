@@ -20,20 +20,23 @@ from src.net.protocol import (
     MSG_HELLO, MSG_LOBBY, MSG_READY, MSG_START, MSG_PICK,
 )
 from src.net.session import HostServer, ClientConnector
+from src.net.discovery import HostBeacon, scan as discoveryScan
+from src.net.internet import InternetHost, InternetClient, fetchLobbies
 
 
 # Match modes: (key, label, total_human_players)
 MATCH_MODES = [
     ('1v1',  '1v1',  2),
     ('2v2',  '2v2',  4),
-    ('COOP', 'Coop', 2),   # 2 humans vs AI
+    ('COOP', 'Coop', 4),   # 1–4 humans vs AI
 ]
 
-# Gamemodes available in multiplayer (key, Dutch label)
+# Gamemodes available in multiplayer
 _MP_GAMEMODES = [
-    ('STANDAARD', 'Standaard Slag'),
-    ('COMMANDER', 'Sla de Commandant'),
-    ('FOG',       'Mist van Oorlog'),
+    ('STANDAARD', 'Standard Battle'),
+    ('COMMANDER', 'Hunt the Commander'),
+    ('FOG',       'Fog of War'),
+    ('CONQUEST',  'Conquest'),
 ]
 
 # Slot↔side logic lives in src/constants.py so Game and the lobby share it.
@@ -84,10 +87,11 @@ DEFAULT_COLOR_ORDER = {
     ('2v2', 1): [6, 2, 4, 0],
     ('2v2', 2): [1, 5, 3, 7],
     ('2v2', 3): [5, 3, 7, 1],
-    # COOP: 2 teammates vs AI — maximise *contrast between teammates* so you
-    # always know which units are yours at a glance.
-    ('COOP', 0): [0, 2, 4, 7],   # blauw → groen → paars → roze
-    ('COOP', 1): [5, 3, 7, 2],   # oranje → geel → roze → groen
+    # COOP: 1–4 teammates vs AI — maximise *contrast between teammates*.
+    ('COOP', 0): [0, 2, 4, 7],   # blauw
+    ('COOP', 1): [5, 3, 7, 2],   # oranje
+    ('COOP', 2): [2, 4, 0, 7],   # groen
+    ('COOP', 3): [3, 7, 5, 2],   # geel
     # 3v3: blauw-familie (cool) versus rood-familie (warm), 3 per team
     ('3v3', 0): [0, 6, 2, 4],    # blauw  / turkoois / groen / paars
     ('3v3', 1): [6, 2, 0, 4],    # turkoois / groen  / blauw / paars
@@ -180,7 +184,7 @@ def _drawPlayerSlot(surf, rect, name, slot, ready, mine, team, colorIdx,
                      pygame.Rect(rect.x, rect.y, 6, rect.height),
                      border_top_left_radius=6, border_bottom_left_radius=6)
 
-    team_word = 'BLAUW' if team == 'player' else 'ROOD'
+    team_word = 'BLUE' if team == 'player' else 'RED'
     role_label = f"Slot {slot + 1} · Team {team_word} · {color_name}"
     role_surf = _font(12).render(role_label, True, _DIM)
     surf.blit(role_surf, (rect.x + 14, rect.y + 8))
@@ -191,10 +195,10 @@ def _drawPlayerSlot(surf, rect, name, slot, ready, mine, team, colorIdx,
         # Bot is always ready — show green indicator
         pygame.draw.circle(surf, (120, 220, 120),
                            (rect.right - 24, rect.y + 22), 7)
-        rd = _font(12, bold=True).render("KLAAR", True, (120, 220, 120))
+        rd = _font(12, bold=True).render("READY", True, (120, 220, 120))
         surf.blit(rd, (rect.right - rd.get_width() - 10, rect.y + 36))
         # Hint that host can click to remove
-        hint = _font(10).render("klik om te verwijderen", True, (120, 115, 140))
+        hint = _font(10).render("click to remove", True, (120, 115, 140))
         surf.blit(hint, (rect.x + 14, rect.y + rect.height - 14))
     elif active:
         name_str  = (name or '—')[:16]
@@ -204,15 +208,15 @@ def _drawPlayerSlot(surf, rect, name, slot, ready, mine, team, colorIdx,
         if ready:
             pygame.draw.circle(surf, (120, 220, 120),
                                (rect.right - 24, rect.y + 22), 7)
-            rd = _font(12, bold=True).render("KLAAR", True, (120, 220, 120))
+            rd = _font(12, bold=True).render("READY", True, (120, 220, 120))
             surf.blit(rd, (rect.right - rd.get_width() - 10, rect.y + 36))
         else:
             pygame.draw.circle(surf, (90, 80, 60),
                                (rect.right - 24, rect.y + 22), 7, 2)
-            rd = _font(11).render("wacht…", True, _DIM)
+            rd = _font(11).render("waiting…", True, _DIM)
             surf.blit(rd, (rect.right - rd.get_width() - 10, rect.y + 36))
     else:
-        empty = _font(16).render("leeg", True, _DIM)
+        empty = _font(16).render("empty", True, _DIM)
         surf.blit(empty, (rect.centerx - empty.get_width() // 2,
                           rect.centery - empty.get_height() // 2))
 
@@ -287,13 +291,13 @@ class MultiplayerMenu:
             _renderShadow(self.screen, "MULTIPLAYER", tf, _GOLD_LIGHT,
                           cx - tf.size("MULTIPLAYER")[0] // 2, 80, offset=3)
             _drawDivider(self.screen, 145)
-            _drawCenteredText(self.screen, "Speel een 1v1 of 2v2 over LAN",
+            _drawCenteredText(self.screen, "Play 1v1, 2v2 or Coop (1-4 vs AI) over LAN",
                               _font(20), _PARCHMENT, 175)
 
-            _drawCenteredText(self.screen, "Jouw naam", _font(16), _DIM, 215)
+            _drawCenteredText(self.screen, "Your name", _font(16), _DIM, 215)
             pygame.draw.rect(self.screen, (240, 228, 204), name_rect, border_radius=4)
             pygame.draw.rect(self.screen, _GOLD, name_rect, 1, border_radius=4)
-            shown = self.name if self.name else "typ je naam…"
+            shown = self.name if self.name else "enter your name…"
             surf  = _font(26, bold=name_ok).render(
                 shown, True, _WHITE if name_ok else _DIM)
             self.screen.blit(surf, (name_rect.x + 14,
@@ -305,14 +309,14 @@ class MultiplayerMenu:
                                  (cx_blink, name_rect.bottom - 10), 2)
 
             host_hover = _button(self.screen, host_rect,
-                                 "Host (open een spel)", mx, my, enabled=name_ok)
+                                 "Host (start a game)", mx, my, enabled=name_ok)
             join_hover = _button(self.screen, join_rect,
-                                 "Join (verbind met een host)", mx, my,
+                                 "Join (connect to a host)", mx, my,
                                  enabled=name_ok)
-            back_hover = _button(self.screen, back_rect, "Terug", mx, my)
+            back_hover = _button(self.screen, back_rect, "Back", mx, my)
 
             if not name_ok:
-                _drawCenteredText(self.screen, "Vul eerst een naam in",
+                _drawCenteredText(self.screen, "Please enter a name first",
                                   _font(14), (200, 120, 120), 480)
 
             if click:
@@ -350,6 +354,8 @@ class _HostLobby:
             self.bindError = str(e)
 
         self.localIp = getLocalIp()
+        self.beacon  = HostBeacon(myName, DEFAULT_PORT)
+        self.internet = InternetHost(myName, maxClients=7)
 
         # slot → (name, ready, colorIdx); slot 0 = me (host). Color is picked
         # with the 1v1 ordering here and will be re-defaulted on mode switch.
@@ -551,21 +557,25 @@ class _HostLobby:
                     if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                         click = True
 
-                # Accept new connections
+                # Accept new connections (LAN + internet)
+                new_sessions = []
                 if self.server:
-                    for sess in self.server.newSessions():
-                        slot = sess.slot
-                        # If a bot was holding this slot, evict it first
-                        if slot in self.bot_slots:
-                            self.bot_slots.discard(slot)
-                            self.slots.pop(slot, None)
-                        taken = {info.get('color') for s, info in self.slots.items()
-                                 if s != slot and info.get('alive', False)}
-                        self.slots[slot] = {
-                            'name': '', 'ready': False, 'alive': True,
-                            'color': _pickDefaultColor(slot, self.modeKey, taken),
-                        }
-                        self.sessions_by_slot[slot] = sess
+                    new_sessions += self.server.newSessions()
+                if self.internet:
+                    new_sessions += self.internet.newSessions()
+                for sess in new_sessions:
+                    slot = sess.slot
+                    # If a bot was holding this slot, evict it first
+                    if slot in self.bot_slots:
+                        self.bot_slots.discard(slot)
+                        self.slots.pop(slot, None)
+                    taken = {info.get('color') for s, info in self.slots.items()
+                             if s != slot and info.get('alive', False)}
+                    self.slots[slot] = {
+                        'name': '', 'ready': False, 'alive': True,
+                        'color': _pickDefaultColor(slot, self.modeKey, taken),
+                    }
+                    self.sessions_by_slot[slot] = sess
 
                 # Drain each client's inbox
                 dead = []
@@ -578,7 +588,7 @@ class _HostLobby:
                             dead.append(slot); break
                         elif mt == MSG_HELLO:
                             self.slots[slot]['name'] = data.get('name') \
-                                or f'Speler {slot + 1}'
+                                or f'Player {slot + 1}'
                             if data.get('version') != PROTOCOL_VERSION:
                                 self.statusMsg = (f"Protocol-mismatch slot {slot + 1}")
                             self._broadcastLobby()
@@ -612,23 +622,28 @@ class _HostLobby:
                 # Total connected (incl. extras outside the current mode)
                 total_alive = self._aliveCount()
 
-                # Launch only when the mode's slots are filled AND nobody
-                # extra is hanging around (otherwise the host needs to bump
-                # to a bigger mode or kick the extras).
-                if (filled == self.requiredPlayers
-                        and ready_count == self.requiredPlayers
-                        and total_alive == self.requiredPlayers):
+                # COOP: start as soon as all connected slots (≥1) are ready.
+                # Other modes: require exactly the right head-count.
+                is_coop = (self.modeKey == 'COOP')
+                if is_coop:
+                    can_start = (total_alive >= 1
+                                 and ready_count == total_alive
+                                 and filled == total_alive)
+                else:
+                    can_start = (filled == self.requiredPlayers
+                                 and ready_count == self.requiredPlayers
+                                 and total_alive == self.requiredPlayers)
+
+                if can_start:
                     # Broadcast START with mySlot specialised per recipient
                     for slot, sess in self.sessions_by_slot.items():
                         if slot in active_slots and sess.alive:
                             sess.send(MSG_START, {})
-                    n = self.requiredPlayers
+                    # COOP: only include actually connected slots in the config.
+                    n = total_alive if is_coop else self.requiredPlayers
                     slotColors = [self.slots.get(s, {}).get('color',
                                    DEFAULT_COLOR_IDX.get(s, 0)) for s in range(n)]
-                    # COOP expects 2 humans vs AI — bump default AI difficulty
-                    # so the match isn't trivial. (MP doesn't expose a picker
-                    # yet; a later pass can add one.)
-                    diff = 'MOEILIJK' if self.modeKey == 'COOP' else 'NORMAAL'
+                    diff = 'MOEILIJK' if is_coop else 'NORMAAL'
                     config = {'biome': self.biomeKey, 'difficulty': diff,
                               'gamemode': self.gamemode, 'seed': self.seed,
                               'role': 'host', 'mode': self.modeKey,
@@ -637,7 +652,8 @@ class _HostLobby:
                                              for s in range(n)],
                               'slotColors': slotColors,
                               'customMap':  self.customMap,
-                              'botSlots':   list(self.bot_slots)}
+                              'botSlots':   list(self.bot_slots),
+                              'coopPlayers': n if is_coop else None}
                     # Return the sessions list for active slots (excluding slot 0 = host itself)
                     active_sessions = [self.sessions_by_slot[s]
                                        for s in active_slots
@@ -658,14 +674,14 @@ class _HostLobby:
 
                 if self.bindError:
                     _drawCenteredText(self.screen,
-                        f"Kan niet luisteren op poort {DEFAULT_PORT}: {self.bindError}",
+                        f"Cannot listen on port {DEFAULT_PORT}: {self.bindError}",
                         _font(16), (255, 120, 120), 132)
                 else:
-                    addr_str = f"Jouw adres:  {self.localIp} : {DEFAULT_PORT}"
+                    addr_str = f"Your address:  {self.localIp} : {DEFAULT_PORT}"
                     _drawCenteredText(self.screen, addr_str,
                                       _font(19, bold=True), _GOLD_LIGHT, 132)
                     _drawCenteredText(self.screen,
-                        "(geef dit IP aan je medespelers)",
+                        "(share this IP with your teammates)",
                         _font(13), _DIM, 156)
 
                 # Slots
@@ -753,7 +769,7 @@ class _HostLobby:
                                  border_radius=4)
 
                 # Biome picker panel
-                label_surf = _font(15).render("Map keuze", True, _DIM)
+                label_surf = _font(15).render("Map Choice", True, _DIM)
                 self.screen.blit(label_surf, (thumb_rect.x, thumb_rect.y - 20))
                 _drawBiomeThumbnail(self.screen, thumb_rect, self.biomeKey)
                 pygame.draw.rect(self.screen, _GOLD, thumb_rect, 2, border_radius=4)
@@ -774,19 +790,19 @@ class _HostLobby:
                               and not self.customMap)
 
                 # Custom map selector — cycles: None → sandbox_map_A → B … → None
-                cust_label = ("Eigen map: " + self.customMapName
+                cust_label = ("Custom map: " + self.customMapName
                               if self.customMapName
-                              else "Eigen sandbox-map kiezen")
+                              else "Choose custom sandbox map")
                 cust_hover = _button(self.screen, custom_rect, cust_label,
                                      mx, my, enabled=m_enabled)
                 if self.customMap:
                     # Note on biome panel when overridden
-                    note = _font(12).render("(biome-keuze genegeerd)", True, _DIM)
+                    note = _font(12).render("(biome choice ignored)", True, _DIM)
                     self.screen.blit(note, (thumb_rect.centerx - note.get_width() // 2,
                                             thumb_rect.bottom + 58))
 
                 # Gamemode picker
-                gm_label_txt = _font(13).render("Spelmode", True, _DIM)
+                gm_label_txt = _font(13).render("Game Mode", True, _DIM)
                 self.screen.blit(gm_label_txt,
                                  (gm_rect.centerx - gm_label_txt.get_width() // 2,
                                   gm_y - 16))
@@ -802,30 +818,38 @@ class _HostLobby:
                                  (gm_rect.centerx - gm_surf.get_width() // 2,
                                   gm_rect.centery - gm_surf.get_height() // 2))
 
-                # Ready button — require exact head-count match for the mode
-                rdy_enabled = (filled == self.requiredPlayers
-                               and total_alive == self.requiredPlayers
-                               and not self.slots[0]['ready'])
-                rdy_label = ("Klaar" if not self.slots[0]['ready']
-                             else "Klaar ✓")
+                # Ready button
+                if self.modeKey == 'COOP':
+                    rdy_enabled = (filled >= 1 and not self.slots[0]['ready'])
+                else:
+                    rdy_enabled = (filled == self.requiredPlayers
+                                   and total_alive == self.requiredPlayers
+                                   and not self.slots[0]['ready'])
+                rdy_label = ("Ready" if not self.slots[0]['ready']
+                             else "Ready ✓")
                 rdy_hover = _button(self.screen, ready_rect, rdy_label,
                                     mx, my, enabled=rdy_enabled)
-                back_hover = _button(self.screen, back_rect, "Terug", mx, my)
+                back_hover = _button(self.screen, back_rect, "Back", mx, my)
 
                 status_y = SCREEN_HEIGHT - 175
                 if self.statusMsg:
-                    _drawCenteredText(self.screen, f"FOUT: {self.statusMsg}",
+                    _drawCenteredText(self.screen, f"ERROR: {self.statusMsg}",
                                       _font(15), (255, 120, 120), status_y)
+                elif self.modeKey == 'COOP':
+                    _drawCenteredText(self.screen,
+                        f"COOP: {total_alive}/4 players connected  —  "
+                        f"host can start with 1 to 4 players",
+                        _font(16), _PARCHMENT, status_y)
                 elif total_alive > self.requiredPlayers:
                     extra = total_alive - self.requiredPlayers
                     _drawCenteredText(self.screen,
-                        f"{extra} speler(s) te veel voor {self.modeKey} — "
-                        f"kies een grotere mode of laat iemand vertrekken",
+                        f"{extra} player(s) too many for {self.modeKey} — "
+                        f"choose a larger mode or have someone leave",
                         _font(16), (255, 180, 100), status_y)
                 elif filled < self.requiredPlayers:
                     need = self.requiredPlayers - filled
                     _drawCenteredText(self.screen,
-                        f"Wachten op {need} speler(s)…",
+                        f"Waiting for {need} player(s)…",
                         _font(16), _PARCHMENT, status_y)
 
                 if click:
@@ -890,7 +914,7 @@ class _HostLobby:
                     elif cust_hover and m_enabled:
                         maps = _listMaps()
                         if not maps:
-                            self.statusMsg = "Geen sandbox-maps gevonden (save er eerst een)."
+                            self.statusMsg = "No sandbox maps found (save one first)."
                         else:
                             # Cycle through ['none', map1, map2, ...]
                             choices = [None] + maps
@@ -908,7 +932,7 @@ class _HostLobby:
                                 try:
                                     data = _loadMap(nxt)
                                 except Exception as e:
-                                    self.statusMsg = f"Laadfout: {e}"
+                                    self.statusMsg = f"Load error: {e}"
                                 else:
                                     self.customMap = data
                                     self.customMapName = nxt[:-5] if nxt.endswith('.json') else nxt
@@ -944,8 +968,11 @@ class _HostLobby:
                 pygame.display.flip()
                 self.clock.tick(60)
         finally:
+            self.beacon.stop()
             if self.server:
                 self.server.close()
+            if self.internet:
+                self.internet.close()
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -960,15 +987,33 @@ class _JoinLobby:
         self.particles, self.prng = _makeParticles(50)
         self.myName = myName
 
-        self.ipText    = ""
-        self.connector = None
-        self.session   = None
-        self.selfReady = False
-        self.mySlot    = None        # assigned by host in HELLO
+        self.ipText      = ""
+        self.connector   = None
+        self.session     = None
+        self.selfReady   = False
+        self.mySlot      = None
         self.peerVersion = None
-        self.lobbyData = None
-        self.status    = 'entering'
-        self.statusMsg = None
+        self.lobbyData   = None
+        self.status      = 'scanning'   # start with LAN scan
+        self.statusMsg   = None
+
+        # Discovery state
+        self._scanResults  = []
+        self._scanThread   = None
+        self._scanDone     = False
+        self._startScan()
+
+    def _startScan(self):
+        import threading
+        self._scanDone    = False
+        self._scanResults = []
+        def _worker():
+            lan      = discoveryScan(timeout=2.0)
+            internet = fetchLobbies(timeout=3.0)
+            self._scanResults = lan + internet
+            self._scanDone    = True
+        self._scanThread = threading.Thread(target=_worker, daemon=True)
+        self._scanThread.start()
 
     def _parseHostPort(self, txt: str):
         txt = txt.strip()
@@ -980,14 +1025,20 @@ class _JoinLobby:
                 return None, None
         return txt, DEFAULT_PORT
 
+    def _beginConnectTo(self, host, port, relay_id=None):
+        if relay_id:
+            self.connector = InternetClient(relay_id, name=self.myName)
+        else:
+            self.connector = ClientConnector(host, port, name=self.myName)
+        self.status = 'connecting'
+
     def _beginConnect(self):
         host, port = self._parseHostPort(self.ipText)
         if not host or port is None:
             self.status    = 'error'
-            self.statusMsg = "Ongeldig IP-formaat (bv. 192.168.1.42)"
+            self.statusMsg = "Invalid IP format (e.g. 192.168.1.42)"
             return
-        self.connector = ClientConnector(host, port, name=self.myName)
-        self.status    = 'connecting'
+        self._beginConnectTo(host, port)
 
     def run(self):
         cx = SCREEN_WIDTH // 2
@@ -1029,7 +1080,10 @@ class _JoinLobby:
                         return 'quit', None, None
                     if event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_ESCAPE:
-                            return 'back', None, None
+                            if self.status == 'entering':
+                                self.status = 'discovered'
+                            else:
+                                return 'back', None, None
                         if self.status == 'entering':
                             if event.key == pygame.K_BACKSPACE:
                                 self.ipText = self.ipText[:-1]
@@ -1040,6 +1094,10 @@ class _JoinLobby:
                                     self.ipText += event.unicode
                     if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                         click = True
+
+                # Scan finished → switch to discovered list
+                if self.status == 'scanning' and self._scanDone:
+                    self.status = 'discovered'
 
                 if self.connector and self.status == 'connecting':
                     if self.connector.status == 'connected':
@@ -1070,6 +1128,7 @@ class _JoinLobby:
                         elif mt == MSG_START:
                             if self.lobbyData:
                                 lobby_slots = self.lobbyData.get('slots', [])
+                                mode = self.lobbyData.get('mode', '1v1')
                                 # 8 slots covers up to 4v4; Game pads further if needed.
                                 slot_colors = [0, 1] * 4
                                 for s in lobby_slots:
@@ -1078,18 +1137,28 @@ class _JoinLobby:
                                         slot_colors[idx] = s.get('color', slot_colors[idx])
                                 bot_slots = [s.get('slot') for s in lobby_slots
                                              if s.get('isBot', False)]
+                                # COOP: count only active human slots so Game
+                                # assigns controllers correctly.
+                                coop_players = None
+                                if mode == 'COOP':
+                                    coop_players = sum(
+                                        1 for s in lobby_slots
+                                        if s.get('active', False) and not s.get('isBot', False))
+                                    coop_players = max(1, coop_players)
+                                diff = 'MOEILIJK' if mode == 'COOP' else 'NORMAAL'
                                 cfg = {
-                                    'biome':      self.lobbyData.get('biome', 'RANDOM'),
-                                    'difficulty': 'NORMAAL',
-                                    'gamemode':   self.lobbyData.get('gamemode', 'STANDAARD'),
-                                    'seed':       self.lobbyData.get('seed', 0),
-                                    'role':       'client',
-                                    'mode':       self.lobbyData.get('mode', '1v1'),
-                                    'mySlot':     self.mySlot,
-                                    'slotNames':  [s.get('name', '') for s in lobby_slots],
-                                    'slotColors': slot_colors,
-                                    'customMap':  self.lobbyData.get('customMap'),
-                                    'botSlots':   bot_slots,
+                                    'biome':       self.lobbyData.get('biome', 'RANDOM'),
+                                    'difficulty':  diff,
+                                    'gamemode':    self.lobbyData.get('gamemode', 'STANDAARD'),
+                                    'seed':        self.lobbyData.get('seed', 0),
+                                    'role':        'client',
+                                    'mode':        mode,
+                                    'mySlot':      self.mySlot,
+                                    'slotNames':   [s.get('name', '') for s in lobby_slots],
+                                    'slotColors':  slot_colors,
+                                    'customMap':   self.lobbyData.get('customMap'),
+                                    'botSlots':    bot_slots,
+                                    'coopPlayers': coop_players,
                                 }
                                 return 'start', cfg, [self.session]
 
@@ -1105,9 +1174,74 @@ class _JoinLobby:
                               cx - tf.size(title)[0] // 2, 50, offset=3)
                 _drawDivider(self.screen, 102)
 
-                if self.status == 'entering':
+                if self.status == 'scanning':
+                    dots = '.' * ((self.tick // 20) % 4)
                     _drawCenteredText(self.screen,
-                        "IP-adres van de host (poort optioneel):",
+                        f"Scanning for hosts on the network{dots}",
+                        _font(22), _PARCHMENT, SCREEN_HEIGHT // 2 - 30)
+                    back_hover = _button(self.screen, back_rect, "Back", mx, my)
+                    if click and back_hover:
+                        return 'back', None, None
+
+                elif self.status == 'discovered':
+                    results = self._scanResults
+                    btn_w, btn_h, btn_gap = 380, 52, 12
+                    list_top = 160
+                    host_rects = []
+                    for i, h in enumerate(results):
+                        r = pygame.Rect(cx - btn_w // 2,
+                                        list_top + i * (btn_h + btn_gap),
+                                        btn_w, btn_h)
+                        host_rects.append(r)
+                        hover = r.collidepoint(mx, my)
+                        bg = (80, 100, 60) if hover else (40, 55, 30)
+                        pygame.draw.rect(self.screen, bg, r, border_radius=6)
+                        pygame.draw.rect(self.screen, _GOLD, r, 1, border_radius=6)
+                        via_relay = h.get('via_relay', False)
+                        loc_tag   = "Internet" if via_relay else h.get('ip', '')
+                        label     = f"{h['name']}  —  {h.get('mode','1v1')}  —  {loc_tag}"
+                        ls = _font(22, bold=hover).render(label, True,
+                                                           _WHITE if hover else _PARCHMENT)
+                        self.screen.blit(ls, (r.centerx - ls.get_width() // 2,
+                                              r.centery - ls.get_height() // 2))
+                        if via_relay:
+                            badge = _font(13).render("Internet", True, (100, 200, 255))
+                            self.screen.blit(badge, (r.right - badge.get_width() - 8,
+                                                     r.top + 6))
+
+                    if not results:
+                        _drawCenteredText(self.screen,
+                            "No hosts found on this network.",
+                            _font(20), _DIM, list_top + 20)
+
+                    rescan_rect = pygame.Rect(cx - 200, SCREEN_HEIGHT - 130, 180, 40)
+                    manual_rect = pygame.Rect(cx + 20,  SCREEN_HEIGHT - 130, 180, 40)
+                    rescan_hover = _button(self.screen, rescan_rect,
+                                           "Scan again", mx, my)
+                    manual_hover = _button(self.screen, manual_rect,
+                                           "Manual IP", mx, my)
+                    back_hover   = _button(self.screen, back_rect, "Back", mx, my)
+                    if click:
+                        for i, r in enumerate(host_rects):
+                            if r.collidepoint(mx, my):
+                                h = results[i]
+                                self._beginConnectTo(
+                                    h.get('ip', ''), h.get('port', DEFAULT_PORT),
+                                    relay_id=h.get('id') if h.get('via_relay') else None,
+                                )
+                                break
+                        else:
+                            if rescan_hover:
+                                self._startScan()
+                                self.status = 'scanning'
+                            elif manual_hover:
+                                self.status = 'entering'
+                            elif back_hover:
+                                return 'back', None, None
+
+                elif self.status == 'entering':
+                    _drawCenteredText(self.screen,
+                        "IP address of the host (port optional):",
                         _font(18), _PARCHMENT, 180)
                     pygame.draw.rect(self.screen, (240, 228, 204), ip_rect,
                                      border_radius=4)
@@ -1120,13 +1254,14 @@ class _JoinLobby:
                         (ip_rect.x + 12,
                          ip_rect.centery - surf.get_height() // 2))
                     can_connect = bool(self.ipText.strip())
-                    conn_hover  = _button(self.screen, connect_rect, "Verbind",
+                    conn_hover  = _button(self.screen, connect_rect, "Connect",
                                           mx, my, enabled=can_connect)
-                    back_hover  = _button(self.screen, back_rect, "Terug", mx, my)
+                    back_hover  = _button(self.screen, back_rect, "Back", mx, my)
                     if click and conn_hover and can_connect:
                         self._beginConnect()
                     elif click and back_hover:
-                        return 'back', None, None
+                        self.status = 'discovered'
+
                 else:
                     mode = (self.lobbyData or {}).get('mode', '1v1')
                     n_required = slotCountForMode(mode)
@@ -1176,7 +1311,7 @@ class _JoinLobby:
                                       slots_top + 2 * (slot_h + slot_gap_y) + 14)
 
                     # Biome readout
-                    label_surf = _font(15).render("Map (host kiest)", True, _DIM)
+                    label_surf = _font(15).render("Map (host chooses)", True, _DIM)
                     self.screen.blit(label_surf, (thumb_rect.x, thumb_rect.y - 20))
                     biome_key = (self.lobbyData or {}).get('biome', 'RANDOM')
                     biome_lab = (self.lobbyData or {}).get('biomeLabel',
@@ -1198,7 +1333,7 @@ class _JoinLobby:
                     gm_key = (self.lobbyData or {}).get('gamemode', 'STANDAARD')
                     gm_lab = next((lab for k, lab in _MP_GAMEMODES if k == gm_key),
                                   gm_key)
-                    gm_lbl_surf = _font(13).render("Spelmode", True, _DIM)
+                    gm_lbl_surf = _font(13).render("Game Mode", True, _DIM)
                     self.screen.blit(gm_lbl_surf,
                                      (thumb_rect.centerx - gm_lbl_surf.get_width() // 2,
                                       thumb_rect.bottom + 80))
@@ -1208,15 +1343,15 @@ class _JoinLobby:
                                       thumb_rect.bottom + 96))
 
                     if self.status == 'error':
-                        _drawCenteredText(self.screen, f"FOUT: {self.statusMsg}",
+                        _drawCenteredText(self.screen, f"ERROR: {self.statusMsg}",
                                           _font(15), (255, 120, 120),
                                           SCREEN_HEIGHT - 175)
 
                     rdy_enabled = (self.status == 'connected' and not self.selfReady)
-                    rdy_label   = "Klaar" if not self.selfReady else "Klaar ✓"
+                    rdy_label   = "Ready" if not self.selfReady else "Ready ✓"
                     rdy_hover   = _button(self.screen, ready_rect, rdy_label,
                                           mx, my, enabled=rdy_enabled)
-                    back_hover  = _button(self.screen, back_rect, "Terug", mx, my)
+                    back_hover  = _button(self.screen, back_rect, "Back", mx, my)
                     if click:
                         # Swatch click — pick own color
                         clicked_swatch = False

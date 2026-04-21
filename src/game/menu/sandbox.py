@@ -174,7 +174,7 @@ class SandboxMenu:
                           cx - tf.size("SANDBOX")[0] // 2, 60, offset=3)
             _drawDivider(self.screen, 125)
 
-            subtitle = "Teken je eigen map en sla hem op"
+            subtitle = "Draw your own map and save it"
             s = _font(18).render(subtitle, True, _PARCHMENT)
             self.screen.blit(s, (cx - s.get_width() // 2, 140))
 
@@ -200,18 +200,18 @@ class SandboxMenu:
                     self.selected = name
             if not maps:
                 empty = _font(18).render(
-                    "Nog geen maps opgeslagen — klik 'Nieuw' om te beginnen.",
+                    "No maps saved yet — click 'New' to begin.",
                     True, _DIM)
                 self.screen.blit(empty, (list_rect.centerx - empty.get_width() // 2,
                                          list_rect.centery - empty.get_height() // 2))
 
             # Buttons
             has_sel = bool(self.selected)
-            new_hover  = _button(self.screen, new_rect,  "+ Nieuw", mx, my)
-            edit_hover = _button(self.screen, edit_rect, "Bewerk", mx, my, enabled=has_sel)
-            play_hover = _button(self.screen, play_rect, "Speel ▶", mx, my, enabled=has_sel)
-            del_hover  = _button(self.screen, del_rect,  "Verwijder", mx, my, enabled=has_sel)
-            back_hover = _button(self.screen, back_rect, "Terug", mx, my)
+            new_hover  = _button(self.screen, new_rect,  "+ New",   mx, my)
+            edit_hover = _button(self.screen, edit_rect, "Edit",    mx, my, enabled=has_sel)
+            play_hover = _button(self.screen, play_rect, "Play ▶",  mx, my, enabled=has_sel)
+            del_hover  = _button(self.screen, del_rect,  "Delete",  mx, my, enabled=has_sel)
+            back_hover = _button(self.screen, back_rect, "Back",    mx, my)
 
             if click:
                 if new_hover:  return ('new', None)
@@ -229,16 +229,16 @@ class SandboxMenu:
 # ════════════════════════════════════════════════════════════════════════════
 
 TOOLS = [
-    # (key,       label,    swatch)
-    ('erase',     'Leeg',   (80, 140, 60)),
-    ('forest',    'Bos',    (40,  85, 35)),
-    ('lake',      'Water',  (40, 120, 180)),
-    ('rock',      'Rots',   (120, 115, 105)),
-    ('highland',  'Heuvel', (160, 140,  80)),
-    ('river',     'Rivier', (70, 150, 210)),
-    ('bridge',    'Brug',   (175, 130,  70)),
-    ('outpost',   'Post',   (235, 210, 120)),
-    ('gum',       'Gum',    (200,  80,  80)),
+    # (key,       label,     swatch)
+    ('erase',     'Empty',   (80, 140, 60)),
+    ('forest',    'Forest',  (40,  85, 35)),
+    ('lake',      'Water',   (40, 120, 180)),
+    ('rock',      'Rock',    (120, 115, 105)),
+    ('highland',  'Hill',    (160, 140,  80)),
+    ('river',     'River',   (70, 150, 210)),
+    ('bridge',    'Bridge',  (175, 130,  70)),
+    ('outpost',   'Outpost', (235, 210, 120)),
+    ('gum',       'Eraser',  (200,  80,  80)),
 ]
 PAINT_TOOLS = {'erase', 'forest', 'lake', 'rock', 'highland'}   # drag-paint
 POINT_TOOLS = {'river', 'bridge', 'outpost', 'gum'}              # click-only
@@ -424,7 +424,7 @@ class MapEditor:
         if best_pt is None:
             # No river close enough — ignore click (rather than dropping a
             # bridge in open grass where the game can't orient it).
-            self._statusMsg   = "Geen rivier binnen bereik — klik dichter bij een rivier."
+            self._statusMsg   = "No river nearby — click closer to a river."
             self._statusUntil = time.time() + 2.0
             return
         self._pushUndo()
@@ -585,16 +585,16 @@ class MapEditor:
         # Brush indicator (only shown for paint tools)
         bx = 10 + len(TOOLS) * (tool_w + 4) + 4
         tool_key = TOOLS[self.toolIdx][0]
-        hint = (f"Kwast: {self.brushSize + 1}  (+/-)"
+        hint = (f"Brush: {self.brushSize + 1}  (+/-)"
                 if tool_key in PAINT_TOOLS else "")
         if tool_key == 'river':
-            hint = f"Rivier: {len(self._riverDraft)} pts  (Enter: OK, Esc: cancel)"
+            hint = f"River: {len(self._riverDraft)} pts  (Enter: confirm, Esc: cancel)"
         elif tool_key == 'bridge':
-            hint = "Klik op rivier om brug te plaatsen"
+            hint = "Click on a river to place a bridge"
         elif tool_key == 'outpost':
-            hint = "Klik om post neer te zetten of weg te halen"
+            hint = "Click to place or remove an outpost"
         elif tool_key == 'gum':
-            hint = "Klik op rivier / brug / post om te wissen"
+            hint = "Click on a river / bridge / outpost to erase"
         ht = _font(14).render(hint, True, _PARCHMENT)
         surf.blit(ht, (bx, y + 22))
 
@@ -605,8 +605,8 @@ class MapEditor:
         back_rect = pygame.Rect(SCREEN_WIDTH - 140, y + 10, 130, tool_h)
         _button(surf, undo_rect, "↶", mx, my, enabled=bool(self._undo))
         _button(surf, redo_rect, "↷", mx, my, enabled=bool(self._redo))
-        save_hover = _button(surf, save_rect, "Opslaan", mx, my)
-        back_hover = _button(surf, back_rect, "Terug",   mx, my)
+        save_hover = _button(surf, save_rect, "Save", mx, my)
+        back_hover = _button(surf, back_rect, "Back", mx, my)
         undo_hover = undo_rect.collidepoint(mx, my) and self._undo
         redo_hover = redo_rect.collidepoint(mx, my) and self._redo
         return save_hover, back_hover, undo_hover, redo_hover, tool_rects
@@ -622,16 +622,16 @@ class MapEditor:
         pygame.draw.rect(self.screen, (244, 236, 219), box, border_radius=6)
         pygame.draw.rect(self.screen, _GOLD, box, 2, border_radius=6)
 
-        t = _font(24, bold=True).render("Map opslaan", True, _GOLD_LIGHT)
+        t = _font(24, bold=True).render("Save Map", True, _GOLD_LIGHT)
         self.screen.blit(t, (cx - t.get_width() // 2, box.y + 14))
 
-        lbl = _font(15).render("Naam:", True, _DIM)
+        lbl = _font(15).render("Name:", True, _DIM)
         self.screen.blit(lbl, (box.x + 24, box.y + 60))
 
         name_rect = pygame.Rect(box.x + 24, box.y + 80, box.width - 48, 36)
         pygame.draw.rect(self.screen, (240, 228, 204), name_rect, border_radius=4)
         pygame.draw.rect(self.screen, _GOLD, name_rect, 1, border_radius=4)
-        shown = self._saveText or "typ een naam…"
+        shown = self._saveText or "enter a name…"
         col   = _WHITE if self._saveText else _DIM
         surf  = _font(22).render(shown, True, col)
         self.screen.blit(surf, (name_rect.x + 10,
@@ -639,9 +639,9 @@ class MapEditor:
 
         ok_rect     = pygame.Rect(box.right - 230, box.bottom - 52, 100, 36)
         cancel_rect = pygame.Rect(box.right - 120, box.bottom - 52, 100, 36)
-        ok_hover     = _button(self.screen, ok_rect, "Opslaan", mx, my,
+        ok_hover     = _button(self.screen, ok_rect, "Save", mx, my,
                                enabled=bool(self._saveText.strip()))
-        cancel_hover = _button(self.screen, cancel_rect, "Annuleer", mx, my)
+        cancel_hover = _button(self.screen, cancel_rect, "Cancel", mx, my)
         return ok_hover, cancel_hover
 
     # ── main loop ───────────────────────────────────────────────────────────
@@ -826,11 +826,11 @@ class MapEditor:
         fname = self._saveText.strip().replace(' ', '_') + '.json'
         try:
             _saveMap(fname, data)
-            self._statusMsg   = f"Opgeslagen als {fname}"
+            self._statusMsg   = f"Saved as {fname}"
             self._statusUntil = time.time() + 2.5
             self.filename     = fname
             self.name         = self._saveText.strip()
             self._saveDialog  = False
         except OSError as e:
-            self._statusMsg   = f"FOUT bij opslaan: {e}"
+            self._statusMsg   = f"Error saving: {e}"
             self._statusUntil = time.time() + 3.0

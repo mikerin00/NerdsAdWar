@@ -23,18 +23,24 @@ TUTORIAL_PROGRESS = os.path.join(os.getcwd(), 'tutorial_progress.json')
 TUTORIALS = [
     {
         'id':   'tut1_basis',
-        'name': 'Les 1 · De Basis',
+        'name': 'Lesson 1 · The Basics',
         'brief': (
-            "Welkom bij Nerds ad War. Dit is je eerste gevecht.\n"
+            "Welcome to Nerds at War. This is your first battle.\n"
             "\n"
-            "BESTURING:\n"
-            "  Linkermuisknop slepen  →  selecteer een groep eenheden\n"
-            "  Linkermuisknop klik    →  selecteer één eenheid\n"
-            "  Rechtermuisknop        →  beweeg of val aan\n"
-            "  SPACE                  →  planning overslaan, gevecht start\n"
+            "CONTROLS:\n"
+            "  Left click drag  →  select a group of units\n"
+            "  Left click       →  select a single unit\n"
+            "  Right click      →  move or attack\n"
+            "  SPACE            →  start battle immediately\n"
             "\n"
-            "DOEL:  Versla de kleine vijandelijke groep rechts.\n"
-            "Focus je musketvuur door al je infanterie op één doel te zetten."
+            "FLANKING & MORALE:\n"
+            "  Attacking from behind: +80% damage.\n"
+            "  Attacking from the side: +35% damage.\n"
+            "  Units at 0 morale flee — rally them\n"
+            "  behind your lines to restore their morale.\n"
+            "\n"
+            "GOAL:  Defeat the small enemy group on the right.\n"
+            "Focus your fire on one target at a time."
         ),
         'biome':         'GRASSLAND',
         'gamemode':      'STANDAARD',
@@ -47,47 +53,117 @@ TUTORIALS = [
     },
     {
         'id':   'tut2_formaties',
-        'name': 'Les 2 · Formaties',
+        'name': 'Lesson 2 · Formations',
         'brief': (
-            "Formaties zijn je beste tactische gereedschap.\n"
+            "Formations determine how your troops are positioned.\n"
             "\n"
-            "CARRÉ (F-toets):\n"
-            "  Infanterie vormt een vierkant dat cavalerie compleet afslaat,\n"
-            "  maar neemt extra schade van artillerie. Perfect als je\n"
-            "  cavalerie-charges verwacht.\n"
+            "SQUARE (F key):\n"
+            "  Infantry forms a square: −70% damage from cavalry.\n"
+            "  But: +50% damage from artillery.\n"
             "\n"
-            "LINIE (Shift + rechtermuisknop slepen):\n"
-            "  Teken een pad — je troepen lijnen zich op en richten zich\n"
-            "  automatisch naar de vijand. Breed vuur-veld, maar kwetsbaar\n"
-            "  voor flankaanvallen.\n"
+            "LINE (Shift + right click drag):\n"
+            "  Draw a path — troops align themselves toward the enemy.\n"
+            "  Wide firing range, but vulnerable to flanking attacks.\n"
             "\n"
-            "DOEL:  De vijand heeft cavalerie. Vorm minstens één carré\n"
-            "voor ze je bereiken."
+            "SHIELD WALL (automatic):\n"
+            "  Two heavy infantry side by side activate a shield wall:\n"
+            "  −45% damage. Keep them grouped for maximum protection.\n"
+            "\n"
+            "GOAL:  The enemy sends cavalry. Form a square in time\n"
+            "and use your artillery to stop them."
         ),
         'biome':         'GRASSLAND',
         'gamemode':      'STANDAARD',
         'difficulty':    'MAKKELIJK',
         'aiPersonality': 'AGGRESSIVE',
         'forces': {
-            'player': {'infantry': 16, 'heavy_infantry': 2, 'cavalry': 0, 'artillery': 1},
-            'enemy':  {'infantry': 8,  'heavy_infantry': 0, 'cavalry': 5, 'artillery': 0},
+            'player': {'infantry': 16, 'heavy_infantry': 4, 'cavalry': 0, 'artillery': 1},
+            'enemy':  {'infantry': 8,  'heavy_infantry': 0, 'cavalry': 6, 'artillery': 0},
         },
     },
     {
-        'id':   'tut3_supply',
-        'name': 'Les 3 · Voorraad & Posten',
+        'id':   'tut3_terrein',
+        'name': 'Lesson 3 · Terrain',
         'brief': (
-            "Eenheden ver van je HQ raken uitgeput. Outposts (de cirkels\n"
-            "op de kaart) zijn neutraal — verover ze en ze voorzien je\n"
-            "leger van supply: beter moreel, sneller herstel.\n"
+            "Terrain affects speed, damage, and cover.\n"
             "\n"
-            "Cavalerie is perfect om snel een outpost te claimen.\n"
-            "Artillerie heeft het langste bereik — plaats ze bij een\n"
-            "outpost zodat ze het terrein beheersen zonder te hoeven\n"
-            "bewegen.\n"
+            "FOREST:  Defender takes 25% less damage.\n"
+            "  Speed: −40%. Ideal position for infantry.\n"
             "\n"
-            "DOEL:  Versla de vijand. Probeer minstens één outpost te\n"
-            "veroveren voor je aanvalt — je merkt het verschil."
+            "HIGH GROUND:  +25% damage when attacking downhill.\n"
+            "  −20% damage when attacking uphill.\n"
+            "  Artillery on a hill dominates the entire battlefield.\n"
+            "\n"
+            "RIVER:  −85% speed in water, −60% damage.\n"
+            "  Use bridges to cross quickly.\n"
+            "\n"
+            "ROCKS & LAKES:  completely impassable.\n"
+            "  Use them as cover or route enemies around them.\n"
+            "\n"
+            "GOAL:  Occupy the high ground before the enemy.\n"
+            "Send cavalry via the bridge to flank."
+        ),
+        'biome':         'RIVER_VALLEY',
+        'gamemode':      'STANDAARD',
+        'difficulty':    'NORMAAL',
+        'aiPersonality': 'DEFENSIVE',
+        'forces': {
+            'player': {'infantry': 14, 'heavy_infantry': 2, 'cavalry': 3, 'artillery': 2},
+            'enemy':  {'infantry': 12, 'heavy_infantry': 3, 'cavalry': 2, 'artillery': 1},
+        },
+    },
+    {
+        'id':   'tut4_troepen',
+        'name': 'Lesson 4 · Units & Matchups',
+        'brief': (
+            "Every unit has strengths and weaknesses.\n"
+            "\n"
+            "INFANTRY (range 100):  musket fire at distance.\n"
+            "HEAVY INFANTRY (180 HP):  melee, slower.\n"
+            "  −35% damage from infantry; +35% from cavalry.\n"
+            "  Shield wall next to a neighbour: −45% extra protection.\n"
+            "\n"
+            "CAVALRY (HP 80, fastest):  charge = 2× damage.\n"
+            "  Counter with square formation or artillery.\n"
+            "\n"
+            "ARTILLERY (range 260):  deploy required (1.5s).\n"
+            "  Devastating vs dense groups. Protect them well.\n"
+            "\n"
+            "COMMANDER (240 HP):  aura around grants\n"
+            "  +morale recovery & +HP recovery to allies.\n"
+            "\n"
+            "GOAL:  Deploy each unit at the right moment.\n"
+            "Defeat the enemy by smart matchups."
+        ),
+        'biome':         'GRASSLAND',
+        'gamemode':      'STANDAARD',
+        'difficulty':    'NORMAAL',
+        'aiPersonality': 'BALANCED',
+        'forces': {
+            'player': {'infantry': 8, 'heavy_infantry': 4, 'cavalry': 3, 'artillery': 2},
+            'enemy':  {'infantry': 10, 'heavy_infantry': 3, 'cavalry': 4, 'artillery': 1},
+        },
+    },
+    {
+        'id':   'tut5_supply',
+        'name': 'Lesson 5 · Supply & Outposts',
+        'brief': (
+            "Units far from your HQ become exhausted. Outposts (the\n"
+            "circles on the map) are neutral — capture them and they\n"
+            "supply your army: better morale, faster recovery.\n"
+            "\n"
+            "SUPPLY EFFECT:\n"
+            "  No supply: morale max = 60, slow recovery.\n"
+            "  Full supply: morale max = 100, fast recovery + HP regen.\n"
+            "  HP recovery only works outside combat range.\n"
+            "\n"
+            "TIPS:\n"
+            "  Cavalry is perfect for quickly claiming an outpost.\n"
+            "  Artillery near an outpost controls the terrain without\n"
+            "  moving — ideal static defence.\n"
+            "\n"
+            "GOAL:  Defeat the enemy. Capture at least one outpost\n"
+            "before attacking — you'll notice the difference in morale."
         ),
         'biome':         'MIXED',
         'gamemode':      'STANDAARD',
@@ -206,7 +282,7 @@ class TutorialMenu:
                           cx - tf.size("TUTORIAL")[0] // 2, 70, offset=3)
             _drawDivider(self.screen, 135)
 
-            sub = _font(16).render("Leer de basis in drie korte missies",
+            sub = _font(16).render("Learn all mechanics in five missions",
                                    True, _PARCHMENT)
             self.screen.blit(sub, (cx - sub.get_width() // 2, 160))
 
@@ -240,7 +316,7 @@ class TutorialMenu:
                     audio.play_sfx('click')
                     return ('select', tut)
 
-            back_hover = _button(self.screen, back_rect, "Terug", mx, my)
+            back_hover = _button(self.screen, back_rect, "Back", mx, my)
             if click and back_hover:
                 audio.play_sfx('click')
                 return ('back', None)
@@ -250,7 +326,7 @@ class TutorialMenu:
 
     def _briefingScreen(self, tutorial, completed):
         cx = SCREEN_WIDTH // 2
-        panel_rect = pygame.Rect(cx - 400, 160, 800, 440)
+        panel_rect = pygame.Rect(cx - 400, 140, 800, 460)
         start_rect = pygame.Rect(cx - 120, SCREEN_HEIGHT - 120, 240, 52)
         back_rect  = pygame.Rect(30, SCREEN_HEIGHT - 60, 160, 40)
 
@@ -287,16 +363,16 @@ class TutorialMenu:
                 if line.strip().endswith(':') or line.upper() == line and line.strip():
                     col  = _GOLD_LIGHT
                     bold = True
-                elif line.startswith('DOEL'):
+                elif line.startswith('GOAL'):
                     col  = (140, 220, 140)
                     bold = True
                 ls = _font(16, bold=bold).render(line, True, col)
                 self.screen.blit(ls, (panel_rect.x + 22, y))
                 y += 24
 
-            start_hover = _button(self.screen, start_rect, "Start missie ▶",
+            start_hover = _button(self.screen, start_rect, "Start Mission ▶",
                                   mx, my)
-            back_hover  = _button(self.screen, back_rect, "Terug", mx, my)
+            back_hover  = _button(self.screen, back_rect, "Back", mx, my)
 
             if click:
                 if start_hover:

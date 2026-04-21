@@ -1,3 +1,10 @@
 {
-  "completed": []
+  "completed": [
+    "m1_ochtendgloren",
+    "m2_bos"
+  ],
+  "stars": {
+    "m1_ochtendgloren": 1,
+    "m2_bos": 1
+  }
 }

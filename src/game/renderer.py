@@ -349,10 +349,12 @@ class RendererMixin:
             self._drawAssaultHud()
         elif self.gamemode == 'COMMANDER':
             self._drawCommanderHud()
+        elif self.gamemode == 'CONQUEST':
+            self._drawConquestHud()
 
         if self.winner is not None:
             if self.gamemode == 'LAST_STAND' and self.winner == 'enemy':
-                self._drawBanner(f"WAVE {self._waveNumber} — GEVALLEN", (255, 120, 80))
+                self._drawBanner(f"WAVE {self._waveNumber} — FALLEN", (255, 120, 80))
             elif self.winner == self.mySide:
                 self._drawBanner("YOU WIN!",  (100, 255, 100))
             else:
@@ -362,16 +364,43 @@ class RendererMixin:
             self._drawBattleStartBanner()
 
     def _drawPlanningOverlay(self):
-        secs   = math.ceil(self.freezeTimer / 60)
-        bar    = pygame.Surface((SCREEN_WIDTH, 48), pygame.SRCALPHA)
-        bar.fill((0, 0, 0, 140))
+        secs = math.ceil(self.freezeTimer / 60)
+        cx   = SCREEN_WIDTH // 2
+
+        # Top banner strip
+        bar = pygame.Surface((SCREEN_WIDTH, 58), pygame.SRCALPHA)
+        bar.fill((12, 20, 8, 185))
         self.screen.blit(bar, (0, 0))
-        msg     = _getBigFont().render(
-            f"PLANNING PHASE  —  {secs}s  —  geef je troepen een doel",
-            True, (255, 230, 100))
-        self.screen.blit(msg, (SCREEN_WIDTH // 2 - msg.get_width() // 2, 10))
-        ready   = self.font.render("[SPACE] Ready!", True, (180, 255, 140))
-        self.screen.blit(ready, (SCREEN_WIDTH // 2 - ready.get_width() // 2, 42))
+
+        # Gold separator lines
+        pygame.draw.line(self.screen, (168, 110, 50), (0, 57), (SCREEN_WIDTH, 57), 1)
+        pygame.draw.line(self.screen, (205, 145, 75), (0, 58), (SCREEN_WIDTH, 58), 1)
+
+        # Main label
+        font_big = _getBigFont()
+        label    = "PLANNING PHASE"
+        lw       = font_big.size(label)[0]
+        # Shadow
+        sh = font_big.render(label, True, (0, 0, 0))
+        self.screen.blit(sh, (cx - lw // 2 + 2, 9))
+        tx = font_big.render(label, True, (255, 225, 80))
+        self.screen.blit(tx, (cx - lw // 2, 7))
+
+        # Countdown badge
+        badge_w = 54
+        bx      = cx + lw // 2 + 14
+        pygame.draw.rect(self.screen, (168, 110, 50),
+                         (bx, 6, badge_w, 32), border_radius=5)
+        pygame.draw.rect(self.screen, (255, 220, 80),
+                         (bx, 6, badge_w, 32), 1, border_radius=5)
+        cd = _getBigFont().render(f"{secs}s", True, (15, 25, 10))
+        self.screen.blit(cd, (bx + badge_w // 2 - cd.get_width() // 2, 9))
+
+        # Sub-hint
+        hint_f = pygame.font.SysFont(None, 22)
+        ready  = hint_f.render("Give your troops a target   ·   [SPACE] Ready!", True,
+                               (160, 210, 140))
+        self.screen.blit(ready, (cx - ready.get_width() // 2, 38))
 
     def _drawAiLog(self):
         entries = aiLogRecent(18)
@@ -417,7 +446,7 @@ class RendererMixin:
         font = _getBigFont()
 
         # Wave badge (top centre, below unit counts)
-        wave_label = f"GOLF  {self._waveNumber}" if self._waveNumber > 0 else "GOLF  —"
+        wave_label = f"WAVE  {self._waveNumber}" if self._waveNumber > 0 else "WAVE  —"
         wave_txt   = font.render(wave_label, True, (255, 200, 80))
         self.screen.blit(wave_txt, (cx - wave_txt.get_width() // 2, 32))
 
@@ -428,17 +457,17 @@ class RendererMixin:
         if self._waveNumber == 0:
             remaining = max(0, self._FIRST_WAVE - self._waveTimer)
             secs      = math.ceil(remaining / 60)
-            cd_txt    = self.font.render(f"Eerste golf in: {secs}s", True, (220, 180, 100))
+            cd_txt    = self.font.render(f"First wave in: {secs}s", True, (220, 180, 100))
             self.screen.blit(cd_txt, (cx - cd_txt.get_width() // 2, 72))
         elif enemies:
             # Wave in progress — show enemy count
-            cd_txt = self.font.render(f"Vijanden over: {len(enemies)}", True, (255, 140, 80))
+            cd_txt = self.font.render(f"Enemies remaining: {len(enemies)}", True, (255, 140, 80))
             self.screen.blit(cd_txt, (cx - cd_txt.get_width() // 2, 72))
         else:
             # Wave cleared — countdown to next
             remaining = max(0, self._INTER_WAVE - self._waveTimer)
             secs      = math.ceil(remaining / 60)
-            cd_txt    = self.font.render(f"Golf verslagen!  Volgende in: {secs}s", True, (120, 220, 120))
+            cd_txt    = self.font.render(f"Wave cleared!  Next in: {secs}s", True, (120, 220, 120))
             self.screen.blit(cd_txt, (cx - cd_txt.get_width() // 2, 72))
 
     def _drawAssaultHud(self):
@@ -451,7 +480,7 @@ class RendererMixin:
         enemyHq = next((h for h in self.headquarters if h.team == 'enemy'), None)
         hq_taken = bool(enemyHq and enemyHq.captured)
 
-        title = "★ Veroveringsdoelen"
+        title = "★ Capture Objectives"
         self.screen.blit(font.render(title, True, (220, 190, 60)),
                          (cx - font.size(title)[0] // 2, 14))
 
@@ -472,7 +501,7 @@ class RendererMixin:
         pygame.draw.rect(self.screen, (30, 30, 30),
                          (hx - pip_r, py - pip_r, pip_r * 2, pip_r * 2), 2)
 
-        score = f"Posten: {taken}/{total}   HQ: {'✓' if hq_taken else '✗'}"
+        score = f"Outposts: {taken}/{total}   HQ: {'✓' if hq_taken else '✗'}"
         score_surf = font.render(score, True, (220, 210, 170))
         self.screen.blit(score_surf, (cx - score_surf.get_width() // 2, py + pip_r + 6))
 
@@ -482,7 +511,7 @@ class RendererMixin:
         cx   = SCREEN_WIDTH // 2
         font = self.font
 
-        title = "♛  Sla de Commandant"
+        title = "♛  Hunt the Commander"
         self.screen.blit(font.render(title, True, GOLD),
                          (cx - font.size(title)[0] // 2, 10))
 
@@ -493,8 +522,8 @@ class RendererMixin:
 
         bar_w, bar_h = 160, 14
         for cmd, label, bx, color in [
-            (player_cmd, "Jouw CMD", cx - bar_w - 20, (80, 140, 220)),
-            (enemy_cmd,  "Vijand CMD", cx + 20,       (220, 70,  70)),
+            (player_cmd, "Your CMD",  cx - bar_w - 20, (80, 140, 220)),
+            (enemy_cmd,  "Enemy CMD", cx + 20,         (220, 70,  70)),
         ]:
             by = 30
             self.screen.blit(font.render(label, True, color), (bx, by - 16))
@@ -506,14 +535,78 @@ class RendererMixin:
                 self.screen.blit(hp_txt, (bx + bar_w // 2 - hp_txt.get_width() // 2,
                                           by + 1))
             else:
-                dead = font.render("GEVALLEN", True, (255, 80, 80))
+                dead = font.render("FALLEN", True, (255, 80, 80))
                 self.screen.blit(dead, (bx + bar_w // 2 - dead.get_width() // 2, by + 1))
             pygame.draw.rect(self.screen, GOLD, (bx, by, bar_w, bar_h), 1)
 
+    def _drawConquestHud(self):
+        """Score bars + outpost ownership for Conquest mode."""
+        cx   = SCREEN_WIDTH // 2
+        font = self.font
+        WIN  = self._CONQUEST_WIN
+        p_sc = min(WIN, self._conquestScore.get('player', 0))
+        e_sc = min(WIN, self._conquestScore.get('enemy',  0))
+
+        title = "⚑  Conquest"
+        self.screen.blit(font.render(title, True, (200, 180, 60)),
+                         (cx - font.size(title)[0] // 2, 8))
+
+        bar_w, bar_h = 180, 12
+        bar_y  = 30
+        gap    = 16
+
+        # Player bar (left of centre)
+        bx = cx - bar_w - gap
+        pygame.draw.rect(self.screen, (30, 30, 30),   (bx, bar_y, bar_w, bar_h))
+        pygame.draw.rect(self.screen, (60, 110, 200),
+                         (bx, bar_y, int(bar_w * p_sc / WIN), bar_h))
+        pygame.draw.rect(self.screen, (100, 150, 255), (bx, bar_y, bar_w, bar_h), 1)
+        ps = font.render(str(int(p_sc)), True, (180, 210, 255))
+        self.screen.blit(ps, (bx - ps.get_width() - 5, bar_y - 1))
+
+        # Win threshold
+        mid = font.render(f"/ {WIN}", True, (160, 150, 120))
+        self.screen.blit(mid, (cx - mid.get_width() // 2, bar_y - 1))
+
+        # Enemy bar (right of centre)
+        ex = cx + gap
+        pygame.draw.rect(self.screen, (30, 30, 30),   (ex, bar_y, bar_w, bar_h))
+        pygame.draw.rect(self.screen, (200, 60, 60),
+                         (ex, bar_y, int(bar_w * e_sc / WIN), bar_h))
+        pygame.draw.rect(self.screen, (255, 100, 100), (ex, bar_y, bar_w, bar_h), 1)
+        es = font.render(str(int(e_sc)), True, (255, 170, 170))
+        self.screen.blit(es, (ex + bar_w + 5, bar_y - 1))
+
+        # Outpost ownership summary
+        p_ops  = sum(1 for op in self.outposts if op.team == 'player')
+        e_ops  = sum(1 for op in self.outposts if op.team == 'enemy')
+        n_ops  = len(self.outposts) - p_ops - e_ops
+        ops    = font.render(
+            f"Outposts — You: {p_ops}  ·  Enemy: {e_ops}  ·  Neutral: {n_ops}",
+            True, (210, 200, 170))
+        self.screen.blit(ops, (cx - ops.get_width() // 2, bar_y + bar_h + 4))
+
     def _drawBanner(self, text, color):
-        surf    = _getBannerFont().render(text, True, color)
-        self.screen.blit(surf, (SCREEN_WIDTH  // 2 - surf.get_width()  // 2,
-                                SCREEN_HEIGHT // 2 - surf.get_height() // 2))
+        font = _getBannerFont()
+        cx   = SCREEN_WIDTH  // 2
+        cy   = SCREEN_HEIGHT // 2
+        tw   = font.size(text)[0]
+        th   = font.size(text)[1]
+        pad  = 28
+
+        # Dark backing panel with colored border
+        bg = pygame.Surface((tw + pad * 2, th + pad), pygame.SRCALPHA)
+        bg.fill((8, 12, 6, 210))
+        self.screen.blit(bg, (cx - tw // 2 - pad, cy - th // 2 - pad // 2))
+        pygame.draw.rect(self.screen, color,
+                         (cx - tw // 2 - pad, cy - th // 2 - pad // 2,
+                          tw + pad * 2, th + pad), 2)
+
+        # Shadow + text
+        sh = font.render(text, True, (0, 0, 0))
+        self.screen.blit(sh, (cx - tw // 2 + 3, cy - th // 2 + 3))
+        tx = font.render(text, True, color)
+        self.screen.blit(tx, (cx - tw // 2, cy - th // 2))
 
     def _drawBattleplans(self, ms):
         """Translucent arrows teammates can draw to plan attacks (B + drag).
@@ -623,7 +716,7 @@ class RendererMixin:
             alpha = int(255 * (frames / 30))
         else:
             alpha = 255
-        text = "DE SLAG IS BEGONNEN"
+        text = "THE BATTLE HAS BEGUN"
         font = _getBigFont()
         surf = font.render(text, True, (255, 220, 90))
         # Slight dark backing strip so it reads on busy terrain
@@ -685,7 +778,7 @@ class RendererMixin:
                 for u in self.units:
                     if u.team == team and u.unitType in counts:
                         counts[u.unitType] += 1
-                label = 'Jij' if team == self.mySide else 'Vijand'
+                label = 'You' if team == self.mySide else 'Enemy'
                 color = UNIT_COLORS[team]['infantry']
                 rows.append((label, color, counts, team == self.mySide))
             return rows
@@ -704,7 +797,7 @@ class RendererMixin:
             name = (self.slotNames[slot]
                     if 0 <= slot < len(self.slotNames) else '') or ''
             if not name:
-                name = f'Speler {slot + 1}'
+                name = f'Player {slot + 1}'
             if slot in getattr(self, 'botSlots', set()):
                 name += ' (AI)'
             rows.append((name, color, counts, slot == self.mySlot))
@@ -714,16 +807,19 @@ class RendererMixin:
         rows = self._gatherScoreRows()
         if not rows:
             return
-        row_h, pad = 22, 8
-        w          = 300
+        row_h, pad = 26, 10
+        w          = 310
         h          = pad * 2 + row_h * len(rows)
-        x          = SCREEN_WIDTH - w - 10
-        y          = 10
+        x          = SCREEN_WIDTH - w - 12
+        y          = 12
 
+        # Parchment-style panel
         panel = pygame.Surface((w, h), pygame.SRCALPHA)
-        panel.fill((0, 0, 0, 170))
+        panel.fill((238, 228, 208, 210))
         self.screen.blit(panel, (x, y))
-        pygame.draw.rect(self.screen, (90, 90, 90), (x, y, w, h), 1)
+        # Copper double border
+        pygame.draw.rect(self.screen, (168, 110, 50), (x, y, w, h), 2)
+        pygame.draw.rect(self.screen, (205, 145, 75), (x + 2, y + 2, w - 4, h - 4), 1)
 
         # Map each emote to the slot/team it came from for placement next
         # to the right scoreboard row.
@@ -735,13 +831,21 @@ class RendererMixin:
 
         for i, (label, color, counts, is_me) in enumerate(rows):
             ry = y + pad + i * row_h
-            pygame.draw.circle(self.screen, color, (x + 14, ry + 10), 7)
-            pygame.draw.circle(self.screen, (20, 20, 20),
-                               (x + 14, ry + 10), 7, 1)
-            name_col = (255, 245, 180) if is_me else (230, 230, 230)
+            # Highlight row for local player
+            if is_me:
+                hl = pygame.Surface((w - 6, row_h - 2), pygame.SRCALPHA)
+                hl.fill((168, 110, 50, 45))
+                self.screen.blit(hl, (x + 3, ry))
+            # Color dot with outline
+            pygame.draw.circle(self.screen, color, (x + 15, ry + 12), 8)
+            pygame.draw.circle(self.screen, (25, 25, 25), (x + 15, ry + 12), 8, 1)
+            if is_me:
+                pygame.draw.circle(self.screen, (255, 230, 80), (x + 15, ry + 12), 9, 1)
+            name_col = (30, 20, 10) if is_me else (50, 40, 30)
+            name_fnt = pygame.font.SysFont('georgia', 14, bold=is_me)
             name_txt = label if len(label) <= 14 else label[:13] + '…'
             self.screen.blit(
-                self.font.render(name_txt, True, name_col), (x + 28, ry + 2))
+                name_fnt.render(name_txt, True, name_col), (x + 30, ry + 4))
             inf   = counts['infantry'] + counts['heavy_infantry']
             cav   = counts['cavalry']
             art   = counts['artillery']

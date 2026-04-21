@@ -18,6 +18,8 @@ import math
 import os
 import random
 import struct
+import threading
+import time as _time
 import wave
 
 import pygame
@@ -29,6 +31,13 @@ SETTINGS    = os.path.join(os.getcwd(), 'settings.json')
 _loaded_sfx = {}          # name → pygame.mixer.Sound
 _vol = {'master': 0.8, 'music': 0.6, 'sfx': 0.9}
 _current_music = None
+
+# ── Loop-fade state ────────────────────────────────────────────────────────
+_LOOP_FADE_MS   = 1400          # fade-out + fade-in duration at loop point
+_track_dur_ms: dict = {}        # name → track length in ms (filled on load)
+_loop_stop   = threading.Event()
+_loop_thread: threading.Thread | None = None
+_fading_in   = False            # True while fade-in ramp is running
 
 
 # ── waveform helpers ───────────────────────────────────────────────────────
@@ -233,9 +242,7 @@ def _gen_music_menu():
             for freq, start, length in melody:
                 s += _softPluck(freq, m_t - start, length) * 0.20
 
-        # Soft master envelope at very start/end for clean loop
-        loop_env = _env(t, LOOP_SECS, 0.4, 0.4)
-        out[i] = s * loop_env
+        out[i] = s
 
     return out
 
@@ -264,9 +271,12 @@ def _ensureAssets():
         if not os.path.exists(path):
             _saveWav(path, gen())
     for name, gen in _MUSIC_GENERATORS.items():
-        path = os.path.join(ASSET_DIR, f'music_{name}.wav')
+        # _v2 suffix forces regeneration when the loop-fade version was introduced.
+        path = os.path.join(ASSET_DIR, f'music_{name}_v2.wav')
         if not os.path.exists(path):
-            _saveWav(path, gen())
+            samples = gen()
+            _saveWav(path, samples)
+            _track_dur_ms[name] = int(len(samples) / SAMPLE_RATE * 1000)
 
 
 def _loadSettings():
@@ -281,9 +291,16 @@ def _loadSettings():
 
 
 def _saveSettings():
+    data = {}
+    try:
+        with open(SETTINGS, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        pass
+    data.update(_vol)
     try:
         with open(SETTINGS, 'w', encoding='utf-8') as f:
-            json.dump(_vol, f, indent=2)
+            json.dump(data, f, indent=2)
     except OSError:
         pass
 
@@ -291,6 +308,75 @@ def _saveSettings():
 # ── public API ─────────────────────────────────────────────────────────────
 
 _initialised = False
+
+def _loop_worker(name: str, fade_ms: int):
+    """Background thread: manages seamless loop with fade-out → fade-in."""
+    dur_ms     = _track_dur_ms.get(name)
+    first_loop = dur_ms is None
+
+    while not _loop_stop.is_set() and _current_music == name:
+        start_t    = _time.monotonic()
+        did_fadeout = False
+
+        # ── Wait for track end, fading out near the end if duration is known ──
+        while not _loop_stop.is_set() and _current_music == name:
+            pos = pygame.mixer.music.get_pos()   # ms since play(), -1 when stopped
+
+            if pos < 0:
+                # Track ended naturally (no pre-fadeout scheduled)
+                if first_loop:
+                    dur_ms     = int((_time.monotonic() - start_t) * 1000)
+                    _track_dur_ms[name] = dur_ms
+                    first_loop = False
+                break
+
+            if dur_ms and not did_fadeout:
+                remaining = dur_ms - pos
+                if remaining <= fade_ms:
+                    try:
+                        pygame.mixer.music.fadeout(fade_ms)
+                    except pygame.error:
+                        pass
+                    did_fadeout = True
+                    # Wait for fadeout to complete
+                    _loop_stop.wait(fade_ms / 1000.0 + 0.08)
+                    break
+                # Sleep efficiently until just before the fadeout point
+                sleep_s = max(0.04, (remaining - fade_ms - 60) / 1000.0)
+                _loop_stop.wait(sleep_s)
+            else:
+                _loop_stop.wait(0.04)
+
+        if _loop_stop.is_set() or _current_music != name:
+            return
+
+        # ── Restart at volume 0, then ramp up ────────────────────────────────
+        global _fading_in
+        target = _vol['master'] * _vol['music']
+        try:
+            pygame.mixer.music.set_volume(0.0)
+            pygame.mixer.music.play(0)
+        except pygame.error:
+            return
+
+        _fading_in = True
+        steps = max(1, fade_ms // 25)
+        for i in range(1, steps + 1):
+            if _loop_stop.is_set() or _current_music != name:
+                _fading_in = False
+                return
+            try:
+                pygame.mixer.music.set_volume(target * i / steps)
+            except pygame.error:
+                _fading_in = False
+                return
+            _loop_stop.wait(fade_ms / 1000.0 / steps)
+        try:
+            pygame.mixer.music.set_volume(target)
+        except pygame.error:
+            pass
+        _fading_in = False
+
 
 def init():
     global _initialised
@@ -310,12 +396,23 @@ def init():
             _loaded_sfx[name] = pygame.mixer.Sound(path)
         except pygame.error:
             pass
+    # Read durations for generated WAVs that were already on disk
+    for name in _MUSIC_GENERATORS:
+        if name in _track_dur_ms:
+            continue
+        path = os.path.join(ASSET_DIR, f'music_{name}_v2.wav')
+        if os.path.exists(path):
+            try:
+                with wave.open(path, 'r') as wf:
+                    _track_dur_ms[name] = int(wf.getnframes() / wf.getframerate() * 1000)
+            except Exception:
+                pass
     _applyMusicVolume()
     _initialised = True
 
 
 def _applyMusicVolume():
-    if pygame.mixer.get_init():
+    if pygame.mixer.get_init() and not _fading_in:
         try:
             pygame.mixer.music.set_volume(_vol['master'] * _vol['music'])
         except pygame.error:
@@ -334,31 +431,59 @@ def play_sfx(name: str):
 
 
 def play_music(name: str = 'menu', loop: bool = True):
-    global _current_music
+    global _current_music, _loop_thread, _loop_stop
     if not pygame.mixer.get_init():
         return
-    path = os.path.join(ASSET_DIR, f'music_{name}.wav')
+    # Use the custom music file if it exists, otherwise fall back to the generated WAV
+    custom = os.path.join(ASSET_DIR, f'music_{name}_custom.mpeg')
+    path   = custom if os.path.exists(custom) else \
+             os.path.join(ASSET_DIR, f'music_{name}_v2.wav')
     if not os.path.exists(path):
         return
     if _current_music == name:
         return
+
+    # Stop existing loop manager before switching tracks
+    _current_music = None
+    _loop_stop.set()
+    if _loop_thread and _loop_thread.is_alive():
+        _loop_thread.join(timeout=0.5)
+    _loop_stop.clear()
+
     try:
         pygame.mixer.music.load(path)
-        pygame.mixer.music.play(-1 if loop else 0)
-        _applyMusicVolume()
+        pygame.mixer.music.set_volume(_vol['master'] * _vol['music'])
+        pygame.mixer.music.play(0)   # single play — loop manager handles restart
         _current_music = name
     except pygame.error:
-        pass
+        return
+
+    if loop:
+        # Determine duration from the actual loaded file so custom mpeg files
+        # don't inherit the generated WAV duration and fade at the wrong time.
+        if path.endswith('.wav'):
+            try:
+                with wave.open(path, 'r') as wf:
+                    _track_dur_ms[name] = int(wf.getnframes() / wf.getframerate() * 1000)
+            except Exception:
+                _track_dur_ms.pop(name, None)
+        else:
+            _track_dur_ms[name] = 30_000   # custom mpeg is 30 s
+
+        _loop_thread = threading.Thread(
+            target=_loop_worker, args=(name, _LOOP_FADE_MS), daemon=True)
+        _loop_thread.start()
 
 
 def stop_music():
     global _current_music
+    _current_music = None
+    _loop_stop.set()
     if pygame.mixer.get_init():
         try:
             pygame.mixer.music.stop()
         except pygame.error:
             pass
-    _current_music = None
 
 
 def set_master(v: float):

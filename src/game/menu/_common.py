@@ -360,6 +360,22 @@ def _renderShadow(surf, text, font, color, x, y, shadow=(210, 180, 135), offset=
 
 # ── Decorative divider line ────────────────────────────────────────────────
 
+def _drawStars(surf, cx, cy, count, earned, r_outer=12, r_inner=5,
+               col_lit=(255, 210, 40), col_dim=(90, 80, 60)):
+    """Draw `count` stars centred on (cx, cy). First `earned` are lit."""
+    import math as _m
+    gap   = r_outer * 2 + 6
+    total = (count - 1) * gap
+    for i in range(count):
+        sx = cx - total // 2 + i * gap
+        pts = []
+        for j in range(10):
+            angle = _m.radians(-90 + j * 36)
+            r = r_outer if j % 2 == 0 else r_inner
+            pts.append((sx + r * _m.cos(angle), cy + r * _m.sin(angle)))
+        pygame.draw.polygon(surf, col_lit if i < earned else col_dim, pts)
+
+
 def _drawDivider(surf, y, color=_GOLD):
     cx = SCREEN_WIDTH // 2
     w  = int(SCREEN_WIDTH * 0.45)

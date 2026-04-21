@@ -16,11 +16,11 @@ from src.game.menu._common import (
 # PauseMenu  — in-game overlay shown when ESC is pressed
 # ══════════════════════════════════════════════════════════════════════════════
 _PAUSE_BUTTONS = [
-    # (return_value, label_nl)
-    ('resume',     'Doorgaan'),
-    ('surrender',  'Opgeven'),
-    ('menu',       'Naar Hoofdmenu'),
-    ('quit',       'Afsluiten'),
+    ('resume',     'Continue'),
+    ('bugreport',  'Report a Bug'),
+    ('surrender',  'Surrender'),
+    ('menu',       'Main Menu'),
+    ('quit',       'Quit'),
 ]
 
 class PauseMenu:
@@ -60,7 +60,13 @@ class PauseMenu:
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     for btn in self._buttons:
                         if btn['hover']:
-                            return btn['val']
+                            val = btn['val']
+                            if val == 'bugreport':
+                                from src.game.menu.bug_report import BugReportScreen
+                                BugReportScreen(self.screen, self.clock,
+                                                self.background).run()
+                            else:
+                                return val
 
             for btn in self._buttons:
                 btn['hover'] = btn['rect'].collidepoint(mx, my)
@@ -93,7 +99,7 @@ class PauseMenu:
 
         # Title
         tf  = _font(42, bold=True)
-        ttx = tf.render("PAUZE", True, _GOLD_LIGHT)
+        ttx = tf.render("PAUSED", True, _GOLD_LIGHT)
         surf.blit(ttx, (cx - ttx.get_width() // 2, py + 18))
         pygame.draw.line(surf, _GOLD,
                          (cx - 80, py + 66), (cx + 80, py + 66), 1)
@@ -122,7 +128,7 @@ class PauseMenu:
 
         # ESC hint
         hf  = _font(14)
-        ht  = hf.render("ESC  —  doorgaan", True, _DIM)
+        ht  = hf.render("ESC  —  resume", True, _DIM)
         surf.blit(ht, (cx - ht.get_width() // 2, py + PH - 26))
 
         pygame.display.flip()

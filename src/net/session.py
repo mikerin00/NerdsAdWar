@@ -195,7 +195,7 @@ class ClientConnector:
     """Async connect attempt to a host. Use poll() to check status.
     Status: 'connecting' | 'connected' | 'failed'."""
 
-    def __init__(self, host: str, port: int = DEFAULT_PORT, name: str = 'Speler 2'):
+    def __init__(self, host: str, port: int = DEFAULT_PORT, name: str = 'Player 2'):
         self.host    = host
         self.port    = port
         self.name    = name

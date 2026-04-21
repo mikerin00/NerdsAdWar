@@ -8,7 +8,8 @@ import pygame
 
 from src.constants import (SCREEN_WIDTH, SCREEN_HEIGHT, FPS, TITLE,
                            TERR_CLAIM_RADIUS, MAP_WIDTH, MAP_HEIGHT,
-                           PLAYER_COLORS, UNIT_COLORS, unitColorFromBase)
+                           PLAYER_COLORS, UNIT_COLORS, unitColorFromBase,
+                           slotCountForMode)
 from src.entities.unit import Unit, _advanceGridFrame
 from src.entities.headquarters import Headquarters
 from src.entities.outpost import Outpost
@@ -48,12 +49,69 @@ class _BotGameProxy:
                    (u.team == 'enemy' and u.controller in bot_slots)]
 
 
+class _TeamView:
+    """Lightweight wrapper that overrides the .team attribute on any game entity."""
+    __slots__ = ('_obj', 'team')
+
+    def __init__(self, obj, team):
+        object.__setattr__(self, '_obj',  obj)
+        object.__setattr__(self, 'team',  team)
+
+    def __getattr__(self, name):
+        return getattr(object.__getattribute__(self, '_obj'), name)
+
+    def __setattr__(self, name, val):
+        if name in ('_obj', 'team'):
+            object.__setattr__(self, name, val)
+        else:
+            setattr(object.__getattribute__(self, '_obj'), name, val)
+
+
+class _PlayerBotProxy:
+    """Wraps Game so EnemyAI can drive player-team bot slots by swapping team
+    perspective: bot-controlled player units appear as 'enemy' (AI's own) and
+    all enemy units appear as 'player' (opponents).  Human partner units on
+    the player team are hidden so the AI never overrides their orders."""
+
+    def __init__(self, game, bot_slots):
+        object.__setattr__(self, '_game',      game)
+        object.__setattr__(self, '_bot_slots', frozenset(bot_slots))
+
+    def __getattr__(self, name):
+        return getattr(object.__getattribute__(self, '_game'), name)
+
+    @property
+    def units(self):
+        game      = object.__getattribute__(self, '_game')
+        bot_slots = object.__getattribute__(self, '_bot_slots')
+        result = []
+        for u in game.units:
+            if u.team == 'player' and u.controller in bot_slots:
+                result.append(_TeamView(u, 'enemy'))
+            elif u.team == 'enemy':
+                result.append(_TeamView(u, 'player'))
+        return result
+
+    @property
+    def headquarters(self):
+        game = object.__getattribute__(self, '_game')
+        return [_TeamView(h, 'player' if h.team == 'enemy' else 'enemy')
+                for h in game.headquarters]
+
+    @property
+    def outposts(self):
+        game = object.__getattribute__(self, '_game')
+        swap = {'player': 'enemy', 'enemy': 'player', 'neutral': 'neutral'}
+        return [_TeamView(op, swap.get(op.team, op.team)) for op in game.outposts]
+
+
 class Game(EventsMixin, FormationMixin, RendererMixin):
     def __init__(self, seed=42, screen=None, clock=None, biome=None, difficulty='NORMAAL',
                  gamemode='STANDAARD', netRole=None, session=None,
                  sessions=None, mode='1v1', mySlot=0, slotNames=None,
                  slotColors=None, customMap=None,
-                 forces=None, aiPersonality=None, botSlots=None):
+                 forces=None, aiPersonality=None, botSlots=None,
+                 coopPlayers=None):
         if screen is None:
             screen = pygame.display.set_mode(
                 (SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN)
@@ -142,6 +200,8 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
             self.slotColors.append(0 if len(self.slotColors) % 2 == 0 else 1)
         # Slots controlled by a bot AI rather than a human network peer.
         self.botSlots = set(botSlots) if botSlots else set()
+        # Actual number of human players in COOP (1-4); ignored for other modes.
+        self._coopPlayers = int(coopPlayers) if coopPlayers else slotCountForMode('COOP')
 
         # Team derived from slot and mode — unified via _slotSide so all
         # modes (1v1/COOP/2v2/3v3/4v4) follow the same first-half/second-half
@@ -155,7 +215,15 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
         # After a winner is declared we linger for a few seconds so the victory
         # banner is readable, then auto-return to the lobby / main menu.
         self._postGameFrames = 0
-        self._POSTGAME_HOLD  = FPS * 6   # 6 seconds
+        self._POSTGAME_HOLD  = FPS * 3   # 3 seconds before results screen
+
+        # Battle stats — used by the results screen
+        self._casualties  = {'player': 0, 'enemy': 0}
+        self._startCounts = {'player': 0, 'enemy': 0}
+
+        # Conquest
+        self._conquestScore = {'player': 0.0, 'enemy': 0.0}
+        self._CONQUEST_WIN  = 1000
 
         # Last Stand
         self._waveNumber    = 0
@@ -212,17 +280,24 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
         else:
             self.ai = None
 
-        # Bot AIs for any enemy-side slots filled with a bot in 2v2/3v3/4v4.
-        # The proxy restricts the AI to units owned by those slots so the
-        # human teammates remain in command of their own units.
+        # Bot AIs for bot-filled slots in 2v2/3v3/4v4.
+        # Enemy-side bots: _BotGameProxy restricts the AI to their units.
+        # Player-side bots: _PlayerBotProxy swaps team perspective so EnemyAI
+        # can drive player-team slots without touching human partners.
         self.botAIs = []
         if (self.netRole in (None, 'host') and self.botSlots
                 and self.matchMode in ('2v2', '3v3', '4v4')):
-            enemy_team_slots = set(self._teamSlots('enemy'))
-            enemy_bots = {s for s in self.botSlots if s in enemy_team_slots}
+            enemy_team_slots  = set(self._teamSlots('enemy'))
+            player_team_slots = set(self._teamSlots('player'))
+            enemy_bots  = {s for s in self.botSlots if s in enemy_team_slots}
+            player_bots = {s for s in self.botSlots if s in player_team_slots}
             if enemy_bots:
-                proxy   = _BotGameProxy(self, enemy_bots)
-                bot_ai  = EnemyAI(proxy, difficulty=difficulty)
+                proxy  = _BotGameProxy(self, enemy_bots)
+                bot_ai = EnemyAI(proxy, difficulty=difficulty)
+                self.botAIs.append(bot_ai)
+            if player_bots:
+                proxy  = _PlayerBotProxy(self, player_bots)
+                bot_ai = EnemyAI(proxy, difficulty=difficulty)
                 self.botAIs.append(bot_ai)
 
     def _spawnUnits(self, rng):
@@ -237,13 +312,13 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
         #   4 players → 64 units    (4v4)               — 16/player
         per_side = max(1, len(self._teamSlots('player')) or 1)
         if per_side >= 4:
-            INF_ROWS, CAV_COUNT, HVY_COUNT, ART_COUNT = 20, 10, 10, 4
+            INF_ROWS, CAV_COUNT, HVY_COUNT, ART_COUNT = 15, 13, 11, 4
         elif per_side == 3:
-            INF_ROWS, CAV_COUNT, HVY_COUNT, ART_COUNT = 18,  9,  9, 3
+            INF_ROWS, CAV_COUNT, HVY_COUNT, ART_COUNT = 14, 11,  9, 3
         elif per_side == 2:
-            INF_ROWS, CAV_COUNT, HVY_COUNT, ART_COUNT = 15,  8,  8, 4
+            INF_ROWS, CAV_COUNT, HVY_COUNT, ART_COUNT = 12,  9,  7, 4
         else:
-            INF_ROWS, CAV_COUNT, HVY_COUNT, ART_COUNT = 10,  5,  5, 2
+            INF_ROWS, CAV_COUNT, HVY_COUNT, ART_COUNT =  8,  7,  6, 2
         COLS      = 2
 
         # Campaign forces override — replaces counts (PLAYER side only for the
@@ -367,6 +442,10 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
                     continue
                 for i, u in enumerate(group):
                     u.controller = slots[(i * k) // n]
+
+        # Record starting unit counts for the results screen
+        for team in ('player', 'enemy'):
+            self._startCounts[team] = sum(1 for u in self.units if u.team == team)
 
     def _generateOutposts(self, rng):
         # Sandbox override: if the custom map declares explicit outpost
@@ -664,9 +743,13 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
             u = Unit(op.x + offX, op.y + offY, op.team, utype)
 
             # Round-robin so every teammate gets an equal share of output.
-            team_slots = self._teamSlots(op.team) or [0]
-            op._spawnRot = (getattr(op, '_spawnRot', -1) + 1) % len(team_slots)
-            u.controller = team_slots[op._spawnRot]
+            # AI-only sides (e.g. COOP enemy) return no slots → controller -1.
+            team_slots = self._teamSlots(op.team)
+            if team_slots:
+                op._spawnRot = (getattr(op, '_spawnRot', -1) + 1) % len(team_slots)
+                u.controller = team_slots[op._spawnRot]
+            else:
+                u.controller = -1
 
             if self.netRole == 'host':
                 self._netIdSeq += 1
@@ -846,7 +929,8 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
     # share one truth table (see MODE_SLOT_COUNT / teamOfSlot).
 
     def _modeSlotCount(self):
-        from src.constants import slotCountForMode
+        if self.matchMode == 'COOP':
+            return self._coopPlayers
         return slotCountForMode(self.matchMode)
 
     def _activeSlots(self):
@@ -854,10 +938,10 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
 
     def _teamSlots(self, team):
         """Slot indices belonging to a given team for the current matchMode.
-        COOP is a special case: both humans share the player team, the enemy
+        COOP is a special case: all human slots share the player team; enemy
         side is AI-driven (no human slot)."""
         if self.matchMode == 'COOP':
-            return [0, 1] if team == 'player' else []
+            return list(range(self._coopPlayers)) if team == 'player' else []
         n    = self._modeSlotCount()
         half = n // 2
         return list(range(half)) if team == 'player' else list(range(half, n))
@@ -939,7 +1023,8 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
                 'cp': round(h.captureProgress, 1),
                 'cap': 1 if h.captured else 0}
                for h in self.headquarters]
-        projs = [{'x': round(p.x, 1), 'y': round(p.y, 1), 'k': p.type}
+        projs = [{'x': round(p.x, 1), 'y': round(p.y, 1), 'k': p.type,
+                  'dx': round(p.destX, 1), 'dy': round(p.destY, 1)}
                  for p in self.projectiles]
         effs  = [{'x': round(e.x, 1), 'y': round(e.y, 1),
                   'k': e.type, 'tm': e.timer}
@@ -1082,6 +1167,8 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
         for pd in data.get('p', []):
             p = object.__new__(Projectile)
             p.x, p.y = pd['x'], pd['y']
+            p.destX  = pd.get('dx', pd['x'])
+            p.destY  = pd.get('dy', pd['y'])
             p.type   = pd['k']
             style    = Projectile.STYLES.get(p.type, Projectile.STYLES['musket'])
             p.radius = style['radius']
@@ -1162,6 +1249,9 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
                                    else 'defeat')
                 self._postGameFrames += 1
                 if self._postGameFrames >= self._POSTGAME_HOLD:
+                    result = self._showResultsScreen()
+                    if result == 'quit':
+                        self._quitGame = True
                     self.running = False
 
             self.clock.tick(FPS)
@@ -1215,6 +1305,7 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
         _advanceGridFrame()
         dead = [u for u in self.units if u.hp <= 0]
         for d in dead:
+            self._casualties[d.team] += 1
             self._notifyAllyDeath(d)
             if d.team == 'enemy':
                 if hasattr(self.ai, 'recordCasualty'):
@@ -1319,8 +1410,9 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
                 self.winner = 'player'
             return
 
-        # Player always loses if HQ falls or army wiped out
-        if not any(u.team == 'player' for u in self.units) or (playerHq and playerHq.captured):
+        # Player always loses if army is wiped out; HQ capture only counts outside Conquest
+        hq_loss = self.gamemode != 'CONQUEST' and playerHq and playerHq.captured
+        if not any(u.team == 'player' for u in self.units) or hq_loss:
             self.winner = 'enemy'
             return
 
@@ -1342,9 +1434,276 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
                 self.winner = 'player'
             return
 
+        if self.gamemode == 'CONQUEST':
+            # Each outpost owned scores 1 point/second for its team.
+            for op in self.outposts:
+                if op.team == 'player':
+                    self._conquestScore['player'] += 1 / FPS
+                elif op.team == 'enemy':
+                    self._conquestScore['enemy'] += 1 / FPS
+            if self._conquestScore['player'] >= self._CONQUEST_WIN:
+                self.winner = 'player'
+            elif self._conquestScore['enemy'] >= self._CONQUEST_WIN:
+                self.winner = 'enemy'
+            # Annihilation only — HQ capture does NOT count in Conquest
+            elif not any(u.team == 'enemy' for u in self.units):
+                self.winner = 'player'
+            return
+
         # STANDAARD
         if not any(u.team == 'enemy' for u in self.units) or (enemyHq and enemyHq.captured):
             self.winner = 'player'
+
+    # Combined score = kill_efficiency * 0.55 + survival_rate * 0.45
+    # kill_efficiency = min(e_killed / max(p_lost, 1), 4) / 4   → 0.0–1.0
+    # survival_rate   = 1 - p_lost / p_start                    → 0.0–1.0
+    _STAR3_SCORE = 0.55
+    _STAR2_SCORE = 0.30
+
+    def calcStars(self) -> int:
+        """1-3 stars based on combined kill-efficiency + survival score. 0 if lost."""
+        if self.winner != 'player':
+            return 0
+        p_lost  = self._casualties.get('player', 0)
+        e_lost  = self._casualties.get('enemy',  0)
+        p_start = max(1, self._startCounts.get('player', 1))
+        eff   = min(e_lost / max(p_lost, 1), 4.0) / 4.0
+        surv  = max(0.0, 1.0 - p_lost / p_start)
+        score = eff * 0.55 + surv * 0.45
+        if score >= self._STAR3_SCORE:
+            return 3
+        if score >= self._STAR2_SCORE:
+            return 2
+        return 1
+
+    def _showResultsScreen(self):
+        """Blocking pygame loop — shows battle stats with animated star reveal, returns 'menu' or 'quit'."""
+        import math as _math
+        import pygame as _pg
+        from src.game.menu._common import _font, _GOLD, _GOLD_LIGHT, _PARCHMENT, _MUTED
+
+        def _draw_star(surf, scx, scy, r_outer, r_inner, color):
+            pts = []
+            for i in range(10):
+                angle = _math.radians(-90 + i * 36)
+                r = r_outer if i % 2 == 0 else r_inner
+                pts.append((scx + r * _math.cos(angle), scy + r * _math.sin(angle)))
+            if r_outer >= 2:
+                _pg.draw.polygon(surf, color, pts)
+
+        won       = self.winner == self.mySide
+        dur_s     = self._frameCount // FPS
+        mins, sec = dur_s // 60, dur_s % 60
+        stars     = self.calcStars() if won else 0
+
+        cx = SCREEN_WIDTH // 2
+        cy = SCREEN_HEIGHT // 2
+
+        extra_h   = 30 if self.gamemode == 'CONQUEST' else 0
+        extra_h  += 80 if won else 0
+        panel_w   = 500
+        panel_h   = 330 + extra_h
+        panel     = _pg.Rect(cx - panel_w // 2, cy - panel_h // 2, panel_w, panel_h)
+        btn_rect  = _pg.Rect(cx - 130, panel.bottom - 62, 260, 46)
+
+        overlay = _pg.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), _pg.SRCALPHA)
+        overlay.fill((0, 0, 0, 170))
+        bg_snap = self.screen.copy()
+
+        # Star animation — each star starts at a different delay (frames)
+        STAR_DELAYS   = [45, 90, 135]
+        ANIM_FRAMES   = 36
+        LABEL_DELAY   = (STAR_DELAYS[stars - 1] + ANIM_FRAMES + 15) if (won and stars > 0) else 0
+        anim_frame    = 0
+        anim_done     = not won
+
+        COL_LIT  = (255, 210, 40)
+        COL_DIM  = (90,  80,  60)
+        COL_GLOW = (255, 240, 130)
+        R_OUTER  = 28
+        R_INNER  = 12
+
+        while True:
+            mx, my = _pg.mouse.get_pos()
+            click  = False
+            for ev in _pg.event.get():
+                if ev.type == _pg.QUIT:
+                    return 'quit'
+                if ev.type == _pg.KEYDOWN and ev.key in (
+                        _pg.K_RETURN, _pg.K_SPACE, _pg.K_ESCAPE):
+                    if not anim_done:
+                        anim_done = True
+                        anim_frame = 9999
+                    else:
+                        return 'menu'
+                if ev.type == _pg.MOUSEBUTTONDOWN and ev.button == 1:
+                    click = True
+            if click:
+                if not anim_done:
+                    anim_done = True
+                    anim_frame = 9999
+                elif btn_rect.collidepoint(mx, my):
+                    return 'menu'
+
+            anim_frame += 1
+            if won and anim_frame >= LABEL_DELAY + 25:
+                anim_done = True
+
+            # ── Draw ─────────────────────────────────────────────────────────
+            self.screen.blit(bg_snap, (0, 0))
+            self.screen.blit(overlay, (0, 0))
+
+            _pg.draw.rect(self.screen, (244, 236, 219), panel, border_radius=8)
+            _pg.draw.rect(self.screen, _GOLD, panel, 2, border_radius=8)
+
+            # Title
+            title     = "VICTORY!" if won else "DEFEAT!"
+            title_col = (80, 220, 100) if won else (220, 80, 80)
+            tf  = _font(52, bold=True)
+            ts  = tf.render(title, True, title_col)
+            sh  = tf.render(title, True, (0, 0, 0))
+            self.screen.blit(sh, (cx - ts.get_width() // 2 + 2, panel.y + 17))
+            self.screen.blit(ts, (cx - ts.get_width() // 2,     panel.y + 15))
+
+            # Duration
+            dur = _font(17).render(
+                f"Battle duration:  {mins}m {sec:02d}s", True, _PARCHMENT)
+            self.screen.blit(dur, (cx - dur.get_width() // 2, panel.y + 82))
+
+            _pg.draw.line(self.screen, _GOLD,
+                          (panel.x + 20, panel.y + 106),
+                          (panel.right - 20, panel.y + 106))
+
+            # Stats table
+            ty    = panel.y + 116
+            hf    = _font(15, bold=True)
+            sf    = _font(15)
+            col_l = panel.x + 36
+            col_p = cx - 40
+            col_e = cx + 90
+
+            self.screen.blit(hf.render("",      True, _GOLD_LIGHT),     (col_l, ty))
+            self.screen.blit(hf.render("You",   True, (80,  140, 220)), (col_p, ty))
+            self.screen.blit(hf.render("Enemy", True, (220,  80,  80)), (col_e, ty))
+            ty += 22
+
+            p_start = self._startCounts.get('player', 0)
+            e_start = self._startCounts.get('enemy',  0)
+            p_lost  = self._casualties.get('player',  0)
+            e_lost  = self._casualties.get('enemy',   0)
+
+            for label, pv, ev in [
+                ("Started",   p_start,           e_start),
+                ("Lost",      p_lost,             e_lost),
+                ("Remaining", p_start - p_lost,   e_start - e_lost),
+            ]:
+                self.screen.blit(sf.render(label,   True, _MUTED),     (col_l, ty))
+                self.screen.blit(sf.render(str(pv), True, _PARCHMENT), (col_p, ty))
+                self.screen.blit(sf.render(str(ev), True, _PARCHMENT), (col_e, ty))
+                ty += 22
+
+            if self.gamemode == 'CONQUEST':
+                ty += 4
+                _pg.draw.line(self.screen, (180, 160, 120),
+                              (col_l, ty), (panel.right - 36, ty))
+                ty += 6
+                ps = int(self._conquestScore.get('player', 0))
+                es = int(self._conquestScore.get('enemy',  0))
+                self.screen.blit(sf.render("Conquest pts", True, _MUTED),           (col_l, ty))
+                self.screen.blit(sf.render(f"{ps} / {self._CONQUEST_WIN}",
+                                           True, _PARCHMENT), (col_p, ty))
+                self.screen.blit(sf.render(f"{es} / {self._CONQUEST_WIN}",
+                                           True, _PARCHMENT), (col_e, ty))
+                ty += 22
+
+            # ── Animated star rating ──────────────────────────────────────────
+            if won:
+                ty += 8
+                _pg.draw.line(self.screen, _GOLD,
+                              (panel.x + 20, ty), (panel.right - 20, ty))
+                ty += 10
+
+                # Star requirements hint
+                _pl = self._casualties.get('player', 0)
+                _el = self._casualties.get('enemy',  0)
+                _ps = max(1, self._startCounts.get('player', 1))
+                _eff  = min(_el / max(_pl, 1), 4.0) / 4.0
+                _surv = max(0.0, 1.0 - _pl / _ps)
+                _score = _eff * 0.55 + _surv * 0.45
+                req_f = _font(12)
+                self.screen.blit(req_f.render(
+                    f"Score: {_score:.2f}  (kill eff: {_eff:.2f}  survival: {_surv:.2f})",
+                    True, _MUTED), (col_l, ty))
+                self.screen.blit(req_f.render(
+                    f"3★ needs {self._STAR3_SCORE}   2★ needs {self._STAR2_SCORE}",
+                    True, (150, 140, 100)), (col_l, ty + 14))
+                ty += 30
+
+                star_cy  = ty + 30
+                star_gap = 72
+                star_xs  = [cx - star_gap, cx, cx + star_gap]
+
+                for i in range(3):
+                    sx  = star_xs[i]
+                    f   = anim_frame - STAR_DELAYS[i]
+                    lit = (i < stars)
+
+                    if not lit:
+                        # Unearned — static dim
+                        _draw_star(self.screen, sx, star_cy, R_OUTER, R_INNER, COL_DIM)
+                    elif f < 0:
+                        # Earned but not yet revealed — dim placeholder
+                        _draw_star(self.screen, sx, star_cy, R_OUTER, R_INNER, COL_DIM)
+                    elif f >= ANIM_FRAMES:
+                        # Settled
+                        _draw_star(self.screen, sx, star_cy, R_OUTER, R_INNER, COL_LIT)
+                    else:
+                        # Bounce: 0→1.4→0.9→1.05→1.0
+                        t = f / ANIM_FRAMES
+                        if t < 0.28:
+                            scale = t / 0.28 * 1.4
+                        elif t < 0.55:
+                            scale = 1.4 - (t - 0.28) / 0.27 * 0.5
+                        elif t < 0.75:
+                            scale = 0.9 + (t - 0.55) / 0.20 * 0.15
+                        else:
+                            scale = 1.05 - (t - 0.75) / 0.25 * 0.05
+                        ro = max(2, int(R_OUTER * scale))
+                        ri = max(1, int(R_INNER * scale))
+                        # Glow burst while overshooting
+                        if scale > 1.0:
+                            glow_r = int(ro * 1.45)
+                            gs = _pg.Surface((glow_r * 2 + 4, glow_r * 2 + 4), _pg.SRCALPHA)
+                            alpha = int(200 * min(1.0, (scale - 1.0) / 0.4))
+                            _pg.draw.circle(gs, (*COL_GLOW, alpha),
+                                            (glow_r + 2, glow_r + 2), glow_r)
+                            self.screen.blit(gs, (sx - glow_r - 2, star_cy - glow_r - 2))
+                        _draw_star(self.screen, sx, star_cy, ro, ri,
+                                   COL_GLOW if scale > 1.02 else COL_LIT)
+
+                # Label fades in after all earned stars have settled
+                if anim_frame >= LABEL_DELAY:
+                    fade   = min(1.0, (anim_frame - LABEL_DELAY) / 20)
+                    lbl_s  = _font(17, bold=True).render(
+                        {3: "Perfect!", 2: "Good", 1: "Completed"}.get(stars, ""),
+                        True, COL_LIT)
+                    lbl_s.set_alpha(int(fade * 255))
+                    self.screen.blit(lbl_s, (cx - lbl_s.get_width() // 2, star_cy + 40))
+
+            # ── Continue button (visible after animation, or immediately on defeat) ──
+            if anim_done or not won:
+                hover   = btn_rect.collidepoint(mx, my)
+                btn_col = (210, 195, 170) if hover else (185, 170, 148)
+                _pg.draw.rect(self.screen, btn_col,  btn_rect, border_radius=6)
+                _pg.draw.rect(self.screen, _GOLD_LIGHT if hover else _GOLD,
+                              btn_rect, 2, border_radius=6)
+                btn_txt = _font(20, bold=True).render("Continue  →", True, _GOLD_LIGHT)
+                self.screen.blit(btn_txt, (
+                    cx - btn_txt.get_width() // 2,
+                    btn_rect.centery - btn_txt.get_height() // 2))
+
+            _pg.display.flip()
+            self.clock.tick(FPS)
 
     def _notifyAllyDeath(self, deadUnit):
         for u in self.units:

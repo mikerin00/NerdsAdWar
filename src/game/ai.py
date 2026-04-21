@@ -212,6 +212,9 @@ class EnemyAI(BattleRolesMixin,
         if self.game.gamemode == 'ASSAULT':
             self._updateAssault()
             return
+        if self.game.gamemode == 'CONQUEST':
+            self._updateConquest()
+            return
 
         cur = sum(1 for u in self.game.units if u.team == 'enemy')
         self._casualties += max(0, self._lastCount - cur)
@@ -359,6 +362,129 @@ class EnemyAI(BattleRolesMixin,
                 ay = enemyHq.y + (i * 2 - 1) * 80
                 ay = max(80, min(H - 80, ay))
                 _moveToSafe(u, terrain, ax, ay)
+
+    def _updateConquest(self):
+        """Conquest AI: capture and hold outposts to score points.
+
+        Assignments are persisted on each unit (_cqTarget) and only changed
+        when the current target is no longer valid, preventing the back-and-forth
+        indecision caused by re-evaluating every tick.
+        """
+        self._timer += 1
+        self._refreshCombat()
+        if self._timer < self._tickInterval:
+            return
+        self._timer = 0
+
+        g       = self.game
+        enemies = [u for u in g.units if u.team == 'enemy' and not u.routing]
+        players = [u for u in g.units if u.team == 'player']
+        terrain = g.terrain
+        W, H    = g.mapWidth, g.mapHeight
+        enemyHq = next((h for h in g.headquarters if h.team == 'enemy'), None)
+
+        if not enemies or not g.outposts:
+            return
+
+        ops        = g.outposts
+        neutral    = [op for op in ops if op.team is None]
+        player_ops = [op for op in ops if op.team == 'player']
+        enemy_ops  = [op for op in ops if op.team == 'enemy']
+
+        our_score = g._conquestScore.get('enemy',  0)
+        foe_score = g._conquestScore.get('player', 0)
+        behind    = our_score < foe_score - 100
+
+        # ── Artillery: anchor near an owned outpost, independent of assignment ─
+        art = [u for u in enemies if u.unitType == 'artillery']
+        for i, u in enumerate(art):
+            anchor = enemy_ops[i % len(enemy_ops)] if enemy_ops else enemyHq
+            if anchor:
+                ax = max(80, min(W - 80, anchor.x + 140))
+                ay = max(80, min(H - 80, anchor.y + (i - len(art) // 2) * 80))
+                if _dist(u.x, u.y, ax, ay) > 60:
+                    _moveToSafe(u, terrain, ax, ay)
+
+        # ── Build ordered target list (one outpost per entry, no duplicate slots)
+        # Priority: defend threatened own > capture neutral > attack enemy > hold own
+        targets = []
+        for op in enemy_ops:
+            pressure = sum(1 for p in players if _dist(op.x, op.y, p.x, p.y) < 220)
+            if pressure > 0:
+                targets.append((0, op))          # defend under-pressure post
+        for op in neutral:
+            targets.append((1, op))              # capture neutral
+        if behind or not neutral:
+            for op in player_ops:
+                targets.append((2, op))          # attack enemy post
+        for op in enemy_ops:
+            pressure = sum(1 for p in players if _dist(op.x, op.y, p.x, p.y) < 220)
+            if pressure == 0:
+                targets.append((3, op))          # hold quiet own post
+
+        targets.sort(key=lambda t: t[0])
+        ordered = [op for _, op in targets]
+
+        mobile = [u for u in enemies
+                  if u.unitType in ('cavalry', 'infantry', 'heavy_infantry')]
+
+        if not ordered:
+            # Nothing to cap/defend — chase nearest enemy
+            for u in mobile:
+                if not players:
+                    continue
+                near = next((p for p in players
+                             if _dist(u.x, u.y, p.x, p.y) < u.attackRange + 60), None)
+                if near:
+                    u.attackTarget = near
+                else:
+                    t = min(players, key=lambda p: _dist(u.x, u.y, p.x, p.y))
+                    _moveToSafe(u, terrain, t.x, t.y)
+            return
+
+        # ── Validate or (re-)assign persistent target ──────────────────────────
+        # A unit keeps its target unless:
+        #   a) it has no target yet
+        #   b) its target is now owned by us (job done)
+        #   c) an enemy post needs defending and this unit is the closest free unit
+        cav = [u for u in mobile if u.unitType == 'cavalry']
+        inf = [u for u in mobile if u.unitType != 'cavalry']
+
+        def _needsNewTarget(u):
+            t = getattr(u, '_cqTarget', None)
+            if t is None:
+                return True
+            if t not in g.outposts:        # outpost removed (shouldn't happen)
+                return True
+            if t.team == 'enemy':          # already ours — find next job
+                return True
+            return False
+
+        # Assign cavalry preferring capture/attack targets
+        cap_ordered = [op for op in ordered if op.team != 'enemy'] or ordered
+        for i, u in enumerate(cav):
+            if _needsNewTarget(u):
+                u._cqTarget = cap_ordered[i % len(cap_ordered)]
+
+        # Spread infantry evenly across all targets using stable round-robin
+        for i, u in enumerate(inf):
+            if _needsNewTarget(u):
+                u._cqTarget = ordered[i % len(ordered)]
+
+        # ── Move each mobile unit toward its assigned target ───────────────────
+        for u in mobile:
+            near = next((p for p in players
+                         if _dist(u.x, u.y, p.x, p.y) < u.attackRange + 60), None)
+            if near:
+                u.attackTarget = near
+                continue
+            op = getattr(u, '_cqTarget', None)
+            if op is not None:
+                # Already close enough — stand ground, don't pace back and forth
+                if _dist(u.x, u.y, op.x, op.y) > 55:
+                    _moveToSafe(u, terrain, op.x, op.y)
+                else:
+                    u.targetX, u.targetY = u.x, u.y
 
     def _evaluateTactic(self):
         enemies = [u for u in self.game.units if u.team == 'enemy']

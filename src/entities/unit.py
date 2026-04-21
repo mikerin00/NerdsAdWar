@@ -263,9 +263,20 @@ class Unit:
             faceX, faceY = self.targetX, self.targetY
         if math.hypot(faceX - self.x, faceY - self.y) > self.speed + 1:
             self._rotateTowards(self._angleTo(faceX, faceY))
+        _ox, _oy = self.x, self.y
         self._move()
         self._separate(allUnits)
         self._clampToBounds()
+
+        # Water splash when moving through rivers
+        if (terrain and terrain.isOnRiver(self.x, self.y)
+                and math.hypot(self.x - _ox, self.y - _oy) > 0.4):
+            self._splashTimer = getattr(self, '_splashTimer', 0) - 1
+            if self._splashTimer <= 0:
+                effects.append(Effect(self.x, self.y, 'splash'))
+                self._splashTimer = 10
+        else:
+            self._splashTimer = 0
 
     def _executeAttack(self, focus, projectiles, effects):
         hBonus  = self._terrain.heightBonus(self, focus)    if self._terrain else 1.0
@@ -279,7 +290,12 @@ class Unit:
             else:
                 bonus = 1.25 if self.shieldWall else 1.0
             focus.takeDamage(self.damage * bonus * hBonus, self.unitType, attacker=self)
-            effects.append(Effect(focus.x, focus.y, 'slash'))
+            ang = self._angleTo(focus.x, focus.y)
+            if self.unitType == 'cavalry':
+                effects.append(Effect(focus.x, focus.y, 'sword', angle=ang))
+            else:
+                effects.append(Effect(focus.x, focus.y, 'spear', angle=ang))
+            effects.append(Effect(focus.x, focus.y, 'blood', angle=10))
             self.attackCooldown = self.attackRate
             if self.unitType == 'cavalry':
                 audio.play_sfx('cavalry')

@@ -17,46 +17,47 @@ from src.game.menu._common import (
 # ══════════════════════════════════════════════════════════════════════════════
 
 _BIOMES = [
-    # (key,            label_nl)
-    ('RANDOM',        'Willekeurig'),
-    ('GRASSLAND',     'Grasvlakte'),
-    ('RIVER_VALLEY',  'Rivierdal'),
-    ('LAKELANDS',     'Merengebied'),
-    ('HIGHLANDS',     'Hooglanden'),
-    ('FOREST',        'Bos'),
-    ('MIXED',         'Gemengd'),
-    ('DRY_PLAINS',    'Droge Vlakten'),
-    ('TWIN_RIVERS',   'Twee Rivieren'),
+    # (key,            label)
+    ('RANDOM',        'Random'),
+    ('GRASSLAND',     'Grassland'),
+    ('RIVER_VALLEY',  'River Valley'),
+    ('LAKELANDS',     'Lakelands'),
+    ('HIGHLANDS',     'Highlands'),
+    ('FOREST',        'Forest'),
+    ('MIXED',         'Mixed'),
+    ('DRY_PLAINS',    'Dry Plains'),
+    ('TWIN_RIVERS',   'Twin Rivers'),
 ]
 
 _DIFFICULTIES = [
-    # (key,         label_nl,    color hint)
-    ('MAKKELIJK',  'Makkelijk',  (100, 200, 100)),
-    ('NORMAAL',    'Normaal',    (180, 200, 120)),
-    ('MOEILIJK',   'Moeilijk',   (220, 180,  60)),
-    ('VETERAAN',   'Veteraan',   (220, 120,  40)),
+    # (key,         label,       color hint)
+    ('MAKKELIJK',  'Easy',       (100, 200, 100)),
+    ('NORMAAL',    'Normal',     (180, 200, 120)),
+    ('MOEILIJK',   'Hard',       (220, 180,  60)),
+    ('VETERAAN',   'Veteran',    (220, 120,  40)),
     ('NAPOLEON',   'Napoleon',   (220,  60,  60)),
 ]
 
 _GAMEMODES = [
-    # (key,           label_nl,               enabled)
-    ('STANDAARD',    'Standaard Slag',         True),
-    ('ASSAULT',      'Aanval',                 True),
-    ('LAST_STAND',   'Laatste Verdediging',    True),
-    ('COMMANDER',    'Sla de Commandant',      True),
-    ('FOG',          'Mist van Oorlog',        True),
+    # (key,           label,                  enabled)
+    ('STANDAARD',    'Standard Battle',        True),
+    ('ASSAULT',      'Assault',                True),
+    ('LAST_STAND',   'Last Stand',             True),
+    ('COMMANDER',    'Hunt the Commander',     True),
+    ('FOG',          'Fog of War',             True),
+    ('CONQUEST',     'Conquest',               True),
 ]
 
 _BIOME_DESC = {
-    'RANDOM':       'Laat het lot beslissen.',
-    'GRASSLAND':    'Open vlakte, geen rivieren. Cavalerie domineert.',
-    'RIVER_VALLEY': 'Één rivier met bruggen. Bruggen zijn strategische doelen.',
-    'LAKELANDS':    'Meren versmallen de routes. Vind de openingen.',
-    'HIGHLANDS':    'Rotsen en heuvelrug. Hoogte geeft voordeel.',
-    'FOREST':       'Dicht bos vertraagt beweging en dekt flankbewegingen.',
-    'MIXED':        'Gevarieerd terrein met rivier en bos.',
-    'DRY_PLAINS':   'Droog en rotsachtig. Weinig dekking voor infanterie.',
-    'TWIN_RIVERS':  'Twee rivieren verdelen het slagveld in drie zones.',
+    'RANDOM':       'Let fate decide.',
+    'GRASSLAND':    'Open plains, no rivers. Cavalry dominates.',
+    'RIVER_VALLEY': 'One river with bridges. Bridges are strategic objectives.',
+    'LAKELANDS':    'Lakes narrow the routes. Find the gaps.',
+    'HIGHLANDS':    'Rocks and ridgelines. High ground grants advantage.',
+    'FOREST':       'Dense forest slows movement and covers flanking maneuvers.',
+    'MIXED':        'Varied terrain with river and forest.',
+    'DRY_PLAINS':   'Dry and rocky. Little cover for infantry.',
+    'TWIN_RIVERS':  'Two rivers divide the battlefield into three zones.',
 }
 
 # Parameters driving the procedural thumbnail for each biome
@@ -415,14 +416,14 @@ class LobbyScreen:
 
         # Title
         tf  = _font(44, bold=True)
-        ttx = tf.render("Slag Instellen", True, _GOLD_LIGHT)
+        ttx = tf.render("Battle Setup", True, _GOLD_LIGHT)
         surf.blit(ttx, (cx - ttx.get_width() // 2, 22))
         _drawDivider(surf, 78)
 
         # Section headers
-        _sectionTitle(surf, "Kaart / Bioom",          COL_W // 2,              90)
-        _sectionTitle(surf, "Moeilijkheid",            COL_W + COL_W // 2,      90)
-        _sectionTitle(surf, "Spelmode",                COL_W * 2 + COL_W // 2,  90)
+        _sectionTitle(surf, "Map / Biome",             COL_W // 2,              90)
+        _sectionTitle(surf, "Difficulty",              COL_W + COL_W // 2,      90)
+        _sectionTitle(surf, "Game Mode",               COL_W * 2 + COL_W // 2,  90)
 
         # Column separators
         for x in (COL_W, COL_W * 2):
@@ -453,10 +454,10 @@ class LobbyScreen:
         pygame.draw.rect(surf, bg,  r, border_radius=4)
         pygame.draw.rect(surf, brd, r, 2 if hover else 1, border_radius=4)
         if self._customMapName:
-            label = f"Eigen map: {self._customMapName}"
+            label = f"Custom map: {self._customMapName}"
             color = _GOLD_LIGHT
         else:
-            label = "Eigen sandbox-map kiezen"
+            label = "Choose custom sandbox map"
             color = _PARCHMENT if hover else _MUTED
         lf = _font(16, bold=hover or bool(self._customMapName))
         lt = lf.render(label, True, color)
@@ -464,7 +465,7 @@ class LobbyScreen:
                        r.centery - lt.get_height() // 2))
 
         if self._customMap:
-            note = _font(12).render("(biome-keuze genegeerd)", True, _DIM)
+            note = _font(12).render("(biome choice ignored)", True, _DIM)
             surf.blit(note, (r.centerx - note.get_width() // 2, r.bottom + 4))
 
         # Difficulty
@@ -476,12 +477,12 @@ class LobbyScreen:
             box.draw(surf)
             if not box._enabled:
                 bf    = _font(13)
-                badge = bf.render("binnenkort", True, _MUTED_RED)
+                badge = bf.render("coming soon", True, _MUTED_RED)
                 surf.blit(badge, (box.rect.right - badge.get_width() - 6,
                                   box.rect.bottom - badge.get_height() - 4))
 
         # Footer buttons
-        _drawFooterBtn(surf, self._btnBack,  "← Terug",    mx, my, gold=False)
-        _drawFooterBtn(surf, self._btnStart, "Start Slag!", mx, my, gold=True)
+        _drawFooterBtn(surf, self._btnBack,  "← Back",       mx, my, gold=False)
+        _drawFooterBtn(surf, self._btnStart, "Start Battle!", mx, my, gold=True)
 
         pygame.display.flip()

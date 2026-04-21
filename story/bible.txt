@@ -1,0 +1,258 @@
+NERDS AT WAR
+Campaign Story Bible — v1.0
+
+1. Game Overview
+Nerds at War is een toegankelijke real-time strategiegame geïnspireerd op de Napoleontische oorlogvoering, gespeeld vanuit een bovenaanzicht. De speler is de bevelhebber: selecteer eenheden, geef bevelen, en kijk hoe de slag zich ontvouwt.
+
+Stijl & Toon
+•	Visuele stijl: licht en cartoonachtig, kleine unit-sprites op een kleurrijke kaart
+•	Menu's vormgegeven als oud perkament met gouden letters
+•	Verhaaltoon: puur absurdistische komedie — personages zijn bewust overdreven, situaties escaleren belachelijk
+•	Dialoog: Pokemon/Fire Emblem-stijl — portretvensters met tekstboxen, geen geanimeerde cutscenes
+•	Dialoog verschijnt alleen vóór en ná battles, nooit tijdens gameplay
+
+Eenheidstypes
+•	Infanterie — betrouwbaar en veelzijdig, ruggengraat van het leger
+•	Cavalerie — snel en verwoestend in een charge, kwetsbaar bij langdurig gevecht
+•	Zware troepen — trage tanks, frontaal moeilijk te stoppen
+•	Artillerie — hoge schade op afstand, kwetsbaar van dichtbij
+
+
+2. Verhaalstructuur
+De Setup
+Er is een koninklijk feest. Generaal Matthijs ziet Princess Bronisz en denkt dat hij zijn droomvrouw heeft gevonden — een elegante vrouw achter de bar. Hij heeft niet door dat Bronisz een man is, en ook niet dat Bronisz al getrouwd is.
+Matthijs stuurt zijn vier handlangers (Koen, Tim, Mika en Luuk) om Bronisz te 'bevrijden uit het paleis' — wat in de praktijk gewoon een ontvoering is. Bronisz gaat mee omdat hij nieuwsgierig is en het feest toch al saai was.
+De Hero was op hetzelfde feest aanwezig, maar was blackout dronken in een hoek en heeft niets meegekregen van de ontvoering. De volgende ochtend is hij de enige die wakker wordt in een leeg paleis. Hij vindt een briefje van Matthijs ('Wees niet jaloers'). Hij begrijpt er niets van, maar trekt er toch op uit — alleen.
+
+De Campagnestructuur
+De campaign bestaat uit 5 gebieden. Elk gebied wordt verdedigd door één handlanger, met meerdere battles per gebied. Elk gebied heeft een intro-dialoog (vóór het eerste gevecht) en een outro-dialoog (nadat de handlanger verslagen is). Tussendoor zijn er optioneel korte dialoogmomenten tussen de battles.
+
+De Grote Lijn
+•	Gebied 1 — Koen de Stuiterbal (grensregio, open veld)
+•	Gebied 2 — Tim de Onzekere (een dorp of brug)
+•	Gebied 3 — Mika de Mespunt (bergpas of fort) — moeilijkste gebied
+•	Gebied 4 — Luuk de Toren (toegangspoort van Matthijs' fort)
+•	Eindgebied — Generaal Matthijs (het fort zelf) + eindscène
+
+De Eindscène
+De Hero breekt door naar Matthijs. Matthijs zit met Bronisz aan tafel alsof het een romantisch diner is. Bronisz heeft inmiddels drie gangen gegeten en speelt het spel volledig mee — hij heeft er geen probleem mee. Na de eindbaasstrijd verliest Matthijs. Dan, voor het eerst, realiseert hij zich dat Bronisz een man is. Lange stilte. Bronisz reageert droogjes dat hij dacht dat Matthijs dat allang wist.
+
+
+3. Karakters
+Princess Bronisz — De Ontvoerde
+Uiterlijk
+•	Lange, slanke man met donker haar en verzorgde baard
+•	Draagt een roze prinsessenjurk met gouden strik en witte handschoenen
+•	Altijd perfect rechtop, alsof hij op een catwalk staat
+•	Typische pose: dramatisch handgebaar of oogrol
+Persoonlijkheid
+•	Sarcastisch, zelfbewust, elegant en een beetje tricky
+•	Speelt zijn rol als 'prinses' volledig mee — weet dat hij er belachelijk uitziet en vindt dat prima
+•	Is getrouwd maar heeft Matthijs dit nooit verteld omdat de situatie hem amuseert
+•	Vindt de ontvoering eigenlijk wel een avontuur — het feest was toch al saai
+Dialoogstijl
+•	Korte, elegante zinnen met een scherpe ondertoon
+•	Nooit gehaast, altijd een tikje superieur
+•	Maakt af en toe een opmerking die dieper snijdt dan het lijkt
+
+Generaal Matthijs — De Villain
+Uiterlijk
+•	Klein, rond, kaal hoofd dat licht reflecteert
+•	Kleine ginger baard en snor
+•	Napoleontisch uniform: blauw met rode sjerp en gouden epauletten
+•	Staat vaak op een krukje om groter te lijken
+•	Typische pose: zwaard zwaaien terwijl hij een speech houdt
+Persoonlijkheid
+•	Overdreven zelfvertrouwen — denkt dat hij een genie is
+•	Theatrale stem, houdt van lange toespraken
+•	Valt snel in slaap op onhandige momenten
+•	Drinkt veel biertjes, nooit dronken genoeg om het te merken
+•	Genuinely verliefd op Bronisz — niet kwaadaardig, gewoon volledig naast de werkelijkheid
+Dialoogstijl
+•	Veel uitroeptekens en dramatische pauzes
+•	Vergelijkt zichzelf constant met historische generaals
+•	Merkt sociale signalen niet op
+
+De Hero — De Speler
+Uiterlijk
+•	Compact, gespierd, bruin haar (mat) en snor
+•	Brede schouders, stoere houding
+•	Uniform: blauw-wit-zilver met rode sjerp en leren riem
+•	Zijn mat beweegt heroïsch in de wind — ook als er geen wind is
+Persoonlijkheid
+•	Stoïcijns en nuchter — zegt zo min mogelijk
+•	Reageert op absurde situaties met precies dezelfde ernst als normale situaties
+•	Was blackout dronken op het feest en heeft geen idee wat er precies is gebeurd
+•	Trekt er alleen op uit, zonder een duidelijk plan
+Dialoogstijl
+•	Zo min mogelijk woorden — bij voorkeur één zin
+•	Stelt nooit vragen terug
+•	Zijn stiltes zijn even expressief als zijn woorden
+
+Koen de Stuiterbal — Handlanger 1
+Uiterlijk
+•	Normaal postuur, blond haar — vaak rommelig
+•	Ogen die constant rondschieten
+•	Uniform zit half scheef, sjerp hangt nooit recht
+•	Typische pose: wijst naar iets randoms met grote ogen
+Persoonlijkheid
+•	Hyperactief — wiebelt, stuitert, praat snel
+•	Raakt afgeleid door alles: vogels, stenen, knoppen, zijn eigen gedachten
+•	Enthousiast over dingen die totaal irrelevant zijn
+•	Geeft bevelen door aan zijn troepen maar vergeet halverwege wat het bevel was
+Dialoogstijl
+•	Begint zinnen die hij niet afmaakt omdat hij afgeleid raakt
+•	Enthousiaste tussenwerpingen over irrelevante dingen
+•	Komt na de outro snel terug met een nieuw idee dat niemand gevraagd heeft
+
+Tim de Onzekere — Handlanger 2
+Uiterlijk
+•	Normaal postuur, bruin haar — netjes gekamd maar toch een beetje rommelig
+•	Staat altijd een beetje ongemakkelijk
+•	Uniform is netjes, houding niet
+•	Typische pose: hand onder kin, nadenkend, duidelijk in de war
+Persoonlijkheid
+•	Twijfelt bij alles, maar volgt toch bevelen op
+•	Probeert volwassen en serieus over te komen
+•	Droge humor, vaak per ongeluk
+•	Slimmer dan hij zelf denkt, maar trapt overal in
+Dialoogstijl
+•	Vraagt halverwege een bevel al of hij het goed begrijpt
+•	Zijn twijfels kloppen vaak — maar hij doet het toch
+•	Onbedoeld grappig door overdreven eerlijkheid
+
+Mika de Mespunt — Handlanger 3
+Uiterlijk
+•	Slank, scherp gezicht, licht baardje
+•	Donkerrode officierenjas met zwarte kraag en zilveren details
+Persoonlijkheid
+•	Sarcastisch en perfectionistisch
+•	Snel geïrriteerd als dingen niet perfect verlopen
+•	Heeft tegelijk heeeeel domme humor — de combinatie is zijn ding
+•	Constant in conflict met de Hero (in zijn hoofd — de Hero reageert nauwelijks)
+Dialoogstijl
+•	Scherpe, snijdende opmerkingen
+•	Legt uit waarom zijn plan perfect was ook als hij net verloren heeft
+•	Wisselende registers: hoog intellectueel dan ineens een flauwe grap
+
+Luuk de Toren — Handlanger 4
+Uiterlijk
+•	Extreem lang en dun
+•	Gigantische bruine afro
+•	Groene Napoleontische jas met gouden knopen en rode sjerp
+•	Typische pose: staat gewoon stil, ongeïnteresseerd
+Persoonlijkheid
+•	Kalme ironie — praat langzaam, denkt snel
+•	Dist iedereen, maar zonder moeite te doen
+•	Nonchalant effectief als verdediger — niet omdat hij zijn best doet, maar omdat hij gewoon goed is
+•	Na verlies haalt hij zijn schouders op
+Dialoogstijl
+•	Lange pauzes voor simpele antwoorden
+•	Zegt in één zin wat anderen in tien zeggen
+•	Heeft altijd een licht verveeld ondertoon
+
+
+4. Gebieden & Verloop per Handlanger
+Elk gebied bevat 10 levels. Story verschijnt op vaste momenten: level 1 (intro), level 4 (tussen 1), level 7 (tussen 2), level 10 (outro). De overige 6 levels hebben geen dialoog.
+
+Gebied 1 — Grasslands (Koen de Stuiterbal)
+Setting
+Open grasvlaktes met lichte heuvels. Koen zou de grenspost bewaken maar is ergens afgeleid geraakt. Zijn troepen zijn verspreid over het veld en weten ook niet precies waar hij is.
+Level 1 — Intro
+De Hero arriveert bij de grenspost. Een soldaat van Koen staat er wat ongemakkelijk bij. Koen schiet ergens vandaan — hij was afgeleid door een interessante rots. Hij houdt een enthousiaste welkomstspeech die halverwege over iets heel anders gaat.
+Level 4 — Tussendoor 1
+Koen duikt op tussen twee battles. Hij heeft inmiddels ook een vogel gevonden die hij wil laten zien. Hij vraagt of de Hero even kan pauzeren. De Hero pauzeert niet.
+Level 7 — Tussendoor 2
+Koen realiseert zich dat hij het aan het verliezen is. Hij heeft hier een plan voor — maar legt het halverwege niet meer uit omdat hij iets ziet bewegen in het gras. Hij rent er naartoe. Zijn troepen wachten.
+Level 10 — Outro
+Koen is verslagen maar lijkt het niet erg te vinden. Hij wuift de Hero vriendelijk na en schiet dan al de andere kant op — hij heeft iets ontdekt. We zien nooit wat.
+Verhaalbetekenis
+Makkelijkste gebied, lage druk. Introduceert de absurde toon. Koen is geen echte bedreiging — hij is gewoon Koen.
+
+Gebied 2 — River Valley (Tim de Onzekere)
+Setting
+Een brede riviervallei met bruggen en doorwaadbare plekken. Tim heeft een verdedigingslinie opgezet bij de hoofdbrug, maar twijfelt of dit wel de goede brug is. Er zijn er drie.
+Level 1 — Intro
+Tim ziet de Hero aankomen. Hij twijfelt of hij moet aanvallen of wachten. Hij besluit te wachten — dat voelt netter. Dan vraagt hij de Hero of die misschien even wil wachten zodat Tim zijn troepen goed kan opstellen. De Hero wacht niet.
+Level 4 — Tussendoor 1
+Tim meldt dat hij zijn verdediging heeft aangepast. Hij beschrijft zijn nieuwe plan. Het plan is eigenlijk best goed. Hij vraagt of de Hero het ook een goed plan vindt. De Hero zegt niets. Tim interpreteert dat als bevestiging.
+Level 7 — Tussendoor 2
+Tim begint te twijfelen of hij wel op de goede brug staat. Hij heeft Matthijs' orders nog een keer gelezen. Ze zijn vaag. Hij volgt ze toch op. Hij vraagt de Hero of die toevallig weet wat 'noordelijke oeverzone' betekent.
+Level 10 — Outro
+Tim geeft toe dat hij eigenlijk al twijfelde of dit wel het goede plan was. Hij vraagt of de Hero misschien feedback heeft voor een volgende keer. De Hero loopt al door. Tim schrijft iets op in een notitieboekje.
+Verhaalbetekenis
+Introduceert tactische complexiteit via de rivieroversteek. Tims twijfels kloppen soms — de speler merkt dat de vijand niet altijd dom is, gewoon onzeker.
+
+Gebied 3 — Drye Planes (Mika de Mespunt)
+Setting
+Droge, open vlaktes zonder dekking. Perfecte omgeving voor Mika's stijl: geen verrassingen, alles zichtbaar, elke fout wordt afgestraft. Hij heeft dit gebied niet toevallig gekozen.
+Level 1 — Intro
+Mika wacht de Hero op in het midden van de vlakte. Hij legt uit, met nauwelijks verholen irritatie, dat dit de plek is waar het avontuur eindigt. Dan voegt hij er een opvallend flauwe grap aan toe. Er volgt een ongemakkelijke stilte.
+Level 4 — Tussendoor 1
+Mika geeft toe dat de Hero beter is dan verwacht. Dit klinkt als een compliment maar is het niet — hij zegt eigenlijk dat zijn eigen berekening klopte en dat hij dus juist goed heeft gepland. De Hero reageert niet.
+Level 7 — Tussendoor 2
+Mika is merkbaar geïrriteerd. Zijn perfecte plan werkt niet zo perfect als gepland. Hij legt uit wat er theoretisch fout is gegaan. Dan maakt hij weer een slechte grap om de spanning te breken. Het werkt niet.
+Level 10 — Outro
+Mika heeft verloren. Hij legt rustig en gedetailleerd uit waarom zijn plan in theorie perfect was en in de praktijk ook perfect was maar dat externe factoren — hij kijkt kort naar de Hero — de uitkomst hebben beïnvloed. Dat is het dichtst bij een compliment dat hij komt.
+Verhaalbetekenis
+Keerpunt van de campaign. Moeilijkste gebied tot nu toe. Mika is de enige handlanger die de Hero serieus neemt. Eerste keer dat het echt spannend voelt.
+
+Gebied 4 — Highlands (Luuk de Toren)
+Setting
+Heuvelachtig hoogland met smalle paden en hoge uitkijkpunten. Luuk staat bij de toegangspoort naar Matthijs' fort. Hij heeft geen uitgebreid plan — hij staat er gewoon, en dat is al genoeg.
+Level 1 — Intro
+Luuk kijkt de Hero aan. Lange stilte. Dan zegt hij één zin. De Hero zegt ook één zin. Dat is het. De battle begint.
+Level 4 — Tussendoor 1
+Luuk merkt op dat de Hero wat sneller gaat dan hij had verwacht. Hij zegt dit zonder enige urgentie. Hij past zijn opstelling iets aan. Hij doet dit zonder haast. Zijn troepen wachten rustig tot hij klaar is.
+Level 7 — Tussendoor 2
+Luuk kijkt naar de situatie. Dan naar de Hero. Dan terug naar de situatie. Hij zegt: 'Oké.' Meer niet. Zijn troepen lijken dit te begrijpen. Ze hergroeperen.
+Level 10 — Outro
+Luuk verliest. Hij haalt zijn schouders op. Zegt dat hij het wel zag aankomen — ergens rond level 4 al. Vraagt of de Hero misschien trek heeft in koffie voor hij verder gaat. De Hero loopt al door. Luuk kijkt hem na. Haalt nog een keer zijn schouders op.
+Verhaalbetekenis
+Rustpunt voor de eindconfrontatie. Luuk behandelt de Hero als een gelijke — de enige die dat doet. Zijn nonchalance maakt de stilte voor de eindboss voelbaar.
+
+Eindgebied — Mixed (Generaal Matthijs)
+Setting
+Het fort zelf, met gevarieerd terrein: binnenplaatsen, smalle gangen, open velden eromheen. De Hero breekt door naar binnen. Matthijs zit met Bronisz aan een gedekte tafel — hij heeft een meergangendiner geregeld. Bronisz heeft al drie gangen gegeten en speelt het volledig mee.
+Level 1 — Intro
+Matthijs staat op (van zijn krukje) en houdt een dramatische toespraak over eer, liefde en het lot. Bronisz geeft de Hero een kleine zijwaartse blik en knikt subtiel — alsof hij zegt: 'ja, dit al een tijdje'. De Hero zegt niets en begint de battle.
+Level 4 — Tussendoor 1
+Matthijs verschijnt even tussen de gevechten door om een aanmoedigingsspeech te houden voor zijn troepen. De speech gaat al snel over hoe geweldig Bronisz is. Bronisz staat op de achtergrond en eet rustig verder.
+Level 7 — Tussendoor 2
+Matthijs begint te merken dat het niet goed gaat. Hij houdt nog een speech — korter nu, minder zeker. Hij kijkt even naar Bronisz voor steun. Bronisz knikt bemoedigend. Matthijs herpakt zich. Het helpt niet.
+Level 10 — Outro
+Matthijs verliest. Stilte. Hij kijkt naar Bronisz. Dan naar de jurk. Dan naar het gezicht. Dan naar de baard. Het kwartje valt. Lange, pijnlijke stilte. Bronisz zegt droogjes dat hij dacht dat Matthijs het allang wist. Matthijs zegt niets. Bronisz vraagt of hij het dessert nog mag opeten. Niemand zegt nee. Credits.
+Verhaalbetekenis
+De ontknoping is niet heroïsch — het is gewoon heel ongemakkelijk. De Hero heeft gewonnen maar zegt er niets over. Bronisz is tevreden. Matthijs heeft een existentiële crisis. Credits.
+
+
+5. Dialoogrichtlijnen voor Claude Code
+Bij het schrijven van campagnedialoog gelden de volgende regels:
+
+Technische beperkingen
+•	Dialoog bestaat uit portretvensters met tekstboxen (Pokemon/Fire Emblem-stijl)
+•	Geen geanimeerde cutscenes — alleen achtergrond + portret + tekst
+•	De achtergrond kan per scène wisselen; portrethouding kan hooguit subtiel variëren
+•	Dialoog verschijnt ALTIJD buiten gameplay: vóór of ná een battle, nooit tijdens
+
+Toonrichtlijnen
+•	Puur absurdistische komedie — nooit knipoog naar de camera, karakters nemen zichzelf serieus
+•	De Hero spreekt zo min mogelijk — één zin is ideaal, twee is al veel
+•	Matthijs heeft nooit door wat er écht aan de hand is — zijn oprechtheid is zijn grap
+•	Bronisz is altijd een stap voor — maar zegt het nooit hardop
+•	Koen wordt halverwege afgeleid; Tim twijfelt altijd; Mika is geïrriteerd; Luuk is onverschillig
+
+Dialooglengte per scène
+•	Intro-dialoog: 6-10 uitwisselingen
+•	Outro-dialoog: 4-6 uitwisselingen
+•	Tussenscènes (optioneel, tussen battles): 2-4 uitwisselingen
+•	Elke uitwisseling = één tekstvenster per spreker
+
+Wat te vermijden
+•	Lange monologen die meer dan één venster vullen
+•	Uitleg van gameplay-mechanics via dialoog
+•	Directe verwijzingen naar het feit dat het een game is
+•	Emotionele diepgang — dit is komedie, niet drama
+
+
+Nerds at War — Campaign Story Bible v1.0

@@ -11,18 +11,133 @@ from src.entities.terrain_helpers import (
 )
 
 
+# Per-biome color palettes.  Keys mirror TerrainMap.BIOMES; 'DEFAULT' is the fallback.
+_BIOME_PAL = {
+    'GRASSLAND': {
+        'base':        (82,  130,  52),
+        'hill_hi':     (165, 178,  82),
+        'forest':      (36,   85,  24),
+        'lake':        (52,  105, 170),
+        'rock':        (122, 112, 100),
+        'rock_hi':     (158, 148, 132),
+        'water':       (55,  105, 158),
+        'water_lite':  (88,  142, 192),
+        'stipple':     (48,   82,  28),
+        'tree':        (26,   68,  16),
+    },
+    'RIVER_VALLEY': {
+        'base':        (62,  118,  40),
+        'hill_hi':     (132, 152,  62),
+        'forest':      (28,   78,  20),
+        'lake':        (45,   92, 152),
+        'rock':        (115, 106,  92),
+        'rock_hi':     (152, 142, 126),
+        'water':       (52,  102, 158),
+        'water_lite':  (85,  140, 194),
+        'stipple':     (44,   80,  26),
+        'tree':        (22,   65,  14),
+    },
+    'LAKELANDS': {
+        'base':        (72,  125,  48),
+        'hill_hi':     (148, 164,  76),
+        'forest':      (34,   84,  24),
+        'lake':        (38,   78, 148),
+        'rock':        (118, 108,  96),
+        'rock_hi':     (155, 145, 128),
+        'water':       (45,   90, 155),
+        'water_lite':  (78,  128, 190),
+        'stipple':     (46,   82,  28),
+        'tree':        (24,   68,  16),
+    },
+    'HIGHLANDS': {
+        'base':        (96,  108,  68),
+        'hill_hi':     (155, 152, 128),
+        'forest':      (48,   82,  36),
+        'lake':        (48,   88, 148),
+        'rock':        (138, 128, 112),
+        'rock_hi':     (175, 165, 148),
+        'water':       (50,   95, 152),
+        'water_lite':  (82,  130, 185),
+        'stipple':     (78,   92,  54),
+        'tree':        (36,   68,  26),
+    },
+    'FOREST': {
+        'base':        (45,   98,  30),
+        'hill_hi':     (82,  118,  50),
+        'forest':      (22,   68,  14),
+        'lake':        (36,   76, 138),
+        'rock':        (112, 104,  92),
+        'rock_hi':     (148, 140, 124),
+        'water':       (42,   88, 145),
+        'water_lite':  (72,  122, 178),
+        'stipple':     (32,   72,  20),
+        'tree':        (18,   58,  10),
+    },
+    'DRY_PLAINS': {
+        'base':        (188, 165,  92),
+        'hill_hi':     (208, 190, 118),
+        'forest':      (108, 125,  55),
+        'lake':        (72,  120, 155),
+        'rock':        (172, 155, 128),
+        'rock_hi':     (195, 178, 152),
+        'water':       (68,  115, 148),
+        'water_lite':  (100, 148, 178),
+        'stipple':     (162, 140,  72),
+        'tree':        (88,  105,  42),
+    },
+    'MIXED': {
+        'base':        (75,  122,  48),
+        'hill_hi':     (152, 162,  78),
+        'forest':      (34,   84,  24),
+        'lake':        (48,   92, 152),
+        'rock':        (120, 110,  98),
+        'rock_hi':     (156, 146, 130),
+        'water':       (52,  100, 155),
+        'water_lite':  (86,  138, 190),
+        'stipple':     (48,   82,  28),
+        'tree':        (24,   68,  16),
+    },
+    'TWIN_RIVERS': {
+        'base':        (60,  112,  38),
+        'hill_hi':     (128, 148,  62),
+        'forest':      (28,   76,  20),
+        'lake':        (44,   88, 148),
+        'rock':        (112, 104,  92),
+        'rock_hi':     (148, 138, 122),
+        'water':       (50,   98, 155),
+        'water_lite':  (82,  135, 190),
+        'stipple':     (42,   78,  24),
+        'tree':        (20,   62,  12),
+    },
+    'WETLANDS': {
+        'base':        (65,   98,  60),
+        'hill_hi':     (115, 128,  85),
+        'forest':      (32,   72,  28),
+        'lake':        (50,   85, 118),
+        'rock':        (105, 108,  95),
+        'rock_hi':     (140, 142, 125),
+        'water':       (52,   86, 118),
+        'water_lite':  (78,  115, 145),
+        'stipple':     (44,   76,  38),
+        'tree':        (24,   60,  20),
+    },
+}
+_BIOME_PAL['DEFAULT'] = _BIOME_PAL['GRASSLAND']
+
+
 def buildTerrainSurface(terrain):
     gw  = terrain.width  // CELL + 2
     gh  = terrain.height // CELL + 2
     rng = random.Random(99)
 
-    BASE       = (74,  117,  44)
-    HILL_HI    = (148, 158,  72)
-    FOREST     = (38,   88,  28)
-    SHADOW_COL = (50,   78,  28)
-    LAKE_COL   = (42,   82, 135)
-    ROCK_COL   = (120, 110, 100)
-    ROCK_HI    = (155, 145, 130)
+    pal = _BIOME_PAL.get(getattr(terrain, 'biome', None), _BIOME_PAL['DEFAULT'])
+
+    BASE      = pal['base']
+    HILL_HI   = pal['hill_hi']
+    FOREST    = pal['forest']
+    LAKE_COL  = pal['lake']
+    ROCK_COL  = pal['rock']
+    ROCK_HI   = pal['rock_hi']
 
     small = pygame.Surface((gw, gh))
     for gy in range(gh):
@@ -49,8 +164,8 @@ def buildTerrainSurface(terrain):
     surf = pygame.transform.smoothscale(small, (terrain.width, terrain.height))
 
     # ── river ────────────────────────────────────────────────────────────
-    WATER      = (58,  100, 150)
-    WATER_LITE = (88,  138, 182)
+    WATER      = pal['water']
+    WATER_LITE = pal['water_lite']
     for river in terrain.rivers:
         ipts = [(int(p[0]), int(p[1])) for p in river]
         if len(ipts) >= 2:
@@ -84,8 +199,9 @@ def buildTerrainSurface(terrain):
                              (mx + int(rdx * BW), my + int(rdy * BW)),
                              (mx - int(rdx * BW), my - int(rdy * BW)), 1)
 
-    # ── highland contour lines ───────────────────────────────────────────
+    # ── highland stipple dots ────────────────────────────────────────────
     sx, sy = terrain.width / gw, terrain.height / gh
+    STIPPLE = pal['stipple']
     for gy in range(gh):
         for gx in range(gw):
             cell = (gx, gy)
@@ -94,10 +210,10 @@ def buildTerrainSurface(terrain):
             if terrain._height.get((gx, gy), 0.5) >= terrain.HIGHLAND_THRESH:
                 rx, ry = int(gx * sx), int(gy * sy)
                 cw, ch = int(sx), int(sy)
-                for n in range(1, 4):
-                    ox = n * (cw // 4)
-                    pygame.draw.line(surf, SHADOW_COL,
-                                     (rx + ox, ry + ch - 2), (rx + cw - 2, ry + ox), 1)
+                step = 5
+                for dy in range(2, ch - 1, step):
+                    for dx in range(2 + (dy // step % 2) * (step // 2), cw - 1, step):
+                        surf.set_at((rx + dx, ry + dy), STIPPLE)
 
     # ── forest trees ─────────────────────────────────────────────────────
     for gy in range(gh):
@@ -108,22 +224,13 @@ def buildTerrainSurface(terrain):
                 for _ in range(5):
                     tx = rx + rng.randint(3, cw - 3)
                     ty = ry + rng.randint(3, ch - 3)
-                    pygame.draw.circle(surf, (28, 70, 18), (tx, ty), rng.randint(3, 6))
+                    pygame.draw.circle(surf, pal['tree'], (tx, ty), rng.randint(3, 6))
 
     # ── lake shore detail ────────────────────────────────────────────────
-    SHORE_COL  = (70, 115, 155)
     SHORE_LITE = (100, 150, 190)
     for (gx, gy) in terrain._lake:
         rx, ry = int(gx * sx), int(gy * sy)
         cw, ch = int(sx), int(sy)
-        # Check if this is an edge cell (has a non-lake neighbour)
-        isEdge = False
-        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-            if (gx + dx, gy + dy) not in terrain._lake:
-                isEdge = True
-                break
-        if isEdge:
-            pygame.draw.rect(surf, SHORE_COL, (rx, ry, cw, ch), 1)
         # Water shimmer
         if rng.random() < 0.3:
             lx = rx + rng.randint(2, max(3, cw - 2))
@@ -136,14 +243,6 @@ def buildTerrainSurface(terrain):
     for (gx, gy) in terrain._rock:
         rx, ry = int(gx * sx), int(gy * sy)
         cw, ch = int(sx), int(sy)
-        # Edge highlight
-        isEdge = False
-        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-            if (gx + dx, gy + dy) not in terrain._rock:
-                isEdge = True
-                break
-        if isEdge:
-            pygame.draw.rect(surf, ROCK_SHADOW, (rx, ry, cw, ch), 1)
         # Rock texture — small dots and cracks
         for _ in range(3):
             tx = rx + rng.randint(1, max(2, cw - 1))
