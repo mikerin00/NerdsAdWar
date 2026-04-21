@@ -269,14 +269,16 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
                     self._netIdSeq += 1
                     u.netId = self._netIdSeq
 
-        # AI: single-player always, MP host in COOP (AI plays the enemy team).
+        # AI: single-player always, MP host in COOP/LAST_STAND (AI plays the enemy team).
         # Client never runs AI — it only mirrors host snapshots.
         spawn_ai = self.netRole is None or \
-                   (self.netRole == 'host' and self.matchMode == 'COOP')
+                   (self.netRole == 'host' and self.matchMode in ('COOP', 'LAST_STAND'))
         if spawn_ai:
             self.ai = EnemyAI(self, difficulty=difficulty)
             if self.aiPersonalityOverride:
                 self.ai._personality = self.aiPersonalityOverride
+            elif self.gamemode == 'LAST_STAND':
+                self.ai._personality = 'AGGRESSIVE'
         else:
             self.ai = None
 
