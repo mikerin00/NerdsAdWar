@@ -1052,6 +1052,8 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
             'f':  self._frameCount,
             'fz': self.freezeTimer,
             'w':  self.winner,
+            'wv': self._waveNumber,
+            'wt': self._waveTimer,
             'u':  units,
             'o':  outposts,
             'h':  hqs,
@@ -1104,8 +1106,10 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
 
     def _applySnapshot(self, data):
         # Freeze timer + winner are straight copies
-        self.freezeTimer = data.get('fz', 0)
-        self.winner      = data.get('w')
+        self.freezeTimer  = data.get('fz', 0)
+        self.winner       = data.get('w')
+        self._waveNumber  = data.get('wv', self._waveNumber)
+        self._waveTimer   = data.get('wt', self._waveTimer)
 
         # Rebuild units. Preserve selection across ticks by mapping netId →
         # new Unit instance (phase 3 lets the client select and issue commands).
@@ -1189,13 +1193,28 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
 
         # Effects — replace with the host's list. Local per-frame decay in
         # _clientTick keeps the animation smooth between snapshots.
+        # Also detect newly appeared effect types to play matching sounds.
         from src.entities.effect import Effect
+        prev_eff_types = {e.type for e in self.effects}
         new_effs = []
         for ed in data.get('e', []):
             e = Effect(ed['x'], ed['y'], ed['k'])
             e.timer = ed['tm']
             new_effs.append(e)
         self.effects = new_effs
+        new_eff_types = {e.type for e in new_effs}
+        appeared = new_eff_types - prev_eff_types
+        if appeared:
+            try:
+                from src import audio
+                if 'smoke' in appeared or 'explosion' in appeared or 'impact' in appeared:
+                    audio.play_sfx('cannon')
+                if 'slash' in appeared:
+                    audio.play_sfx('musket')
+                if 'sword' in appeared or 'spear' in appeared:
+                    audio.play_sfx('cavalry')
+            except Exception:
+                pass
 
         # Battleplans — replace wholesale (host is authoritative).
         self.battleplans = [

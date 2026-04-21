@@ -17,6 +17,7 @@ from src.game.menu._common import (
 # ══════════════════════════════════════════════════════════════════════════════
 _PAUSE_BUTTONS = [
     ('resume',     'Continue'),
+    ('settings',   'Settings'),
     ('bugreport',  'Report a Bug'),
     ('surrender',  'Surrender'),
     ('menu',       'Main Menu'),
@@ -65,6 +66,11 @@ class PauseMenu:
                                 from src.game.menu.bug_report import BugReportScreen
                                 BugReportScreen(self.screen, self.clock,
                                                 self.background).run()
+                            elif val == 'settings':
+                                from src.game.menu.settings import SettingsMenu
+                                result = SettingsMenu(self.screen, self.clock).run()
+                                if result == 'quit':
+                                    return 'quit'
                             else:
                                 return val
 
