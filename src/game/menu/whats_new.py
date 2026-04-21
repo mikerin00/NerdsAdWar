@@ -20,6 +20,17 @@ from src.game.menu._common import (
 # ── Changelog ─────────────────────────────────────────────────────────────
 # Add a new key here for every release that has player-facing changes.
 CHANGELOG = {
+    "v1.25": [
+        "Waves (Coop) added to multiplayer — survive enemy waves together with up to 4 players",
+        "2v2 partial lobby: start with fewer than 4 players, solo player commands the full team army",
+        "In-game bug report button in the pause menu — reports go straight to Discord",
+        "Character portraits auto-download on first launch — no manual installation needed",
+        "ESC skips story dialogs instantly; speaker name moved closer to the text",
+        "AI is less passive: DEFENSIVE personality switches tactics faster and pushes forward more",
+        "Bot partner in 2v2 now actually fights — fixed player-side bot standing still",
+        "Attack click radius increased — easier to target enemies in multiplayer",
+        "VPS relay server: host internet lobbies without port forwarding or room codes",
+    ],
     "v1.24": [
         "Campaign story: 5 worlds each with a unique villain, themed background, and unlock chain",
         "Prologue screen: 'Het Paleis' world shows the full story intro before the first mission",

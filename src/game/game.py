@@ -421,9 +421,18 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
         # Split each team's units spatially so rectangle-select stays
         # intuitive: sort by Y, chunk into K equal groups, assign to each
         # team slot in turn. COOP's enemy side has no humans → -1 (AI only).
+        # Partial 2v2: slots with no human AND no bot are skipped — their units
+        # go to the active player(s) on the same team (bigger army).
+        def _active_slots_for(team):
+            all_s = self._teamSlots(team)
+            active = [s for s in all_s
+                      if s in self.botSlots
+                      or (s < len(self.slotNames) and bool(self.slotNames[s].strip()))]
+            return active if active else all_s  # fallback: use all
+
         side_slots = {
-            'player': self._teamSlots('player'),
-            'enemy':  self._teamSlots('enemy'),
+            'player': _active_slots_for('player'),
+            'enemy':  _active_slots_for('enemy'),
         }
         for team, slots in side_slots.items():
             team_units = [u for u in self.units if u.team == team]
@@ -658,6 +667,7 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
                 y = cy + (i - count // 2) * 48 + (hash((utype, i, n)) % 20 - 10)
                 y = max(60, min(H - 60, y))
                 u = Unit(spawn_x, y, 'enemy', utype)
+                u.controller = -1   # AI-only; no human commands these
                 # Point directly at player HQ from spawn
                 spread = (hash((utype, i)) % 300) - 150
                 u.targetX = hqx + 30

@@ -37,6 +37,7 @@ _MP_GAMEMODES = [
     ('COMMANDER', 'Hunt the Commander'),
     ('FOG',       'Fog of War'),
     ('CONQUEST',  'Conquest'),
+    ('LAST_STAND','Waves (Coop)'),
 ]
 
 # Slot↔side logic lives in src/constants.py so Game and the lobby share it.
@@ -623,12 +624,29 @@ class _HostLobby:
                 total_alive = self._aliveCount()
 
                 # COOP: start as soon as all connected slots (≥1) are ready.
+                # 2v2/3v3: full lobby OR at least 1 active per team (bigger army).
                 # Other modes: require exactly the right head-count.
-                is_coop = (self.modeKey == 'COOP')
+                is_coop = (self.modeKey in ('COOP', 'LAST_STAND'))
                 if is_coop:
                     can_start = (total_alive >= 1
                                  and ready_count == total_alive
                                  and filled == total_alive)
+                elif self.modeKey in ('2v2', '3v3', '4v4'):
+                    # Full lobby: everyone must be ready
+                    full_lobby = (filled == self.requiredPlayers
+                                  and ready_count == self.requiredPlayers
+                                  and total_alive == self.requiredPlayers)
+                    # Partial: at least 1 active per team, all present are ready
+                    half = self.requiredPlayers // 2
+                    p_active = sum(1 for s in range(half)
+                                   if self.slots.get(s, {}).get('alive', False))
+                    e_active = sum(1 for s in range(half, self.requiredPlayers)
+                                   if self.slots.get(s, {}).get('alive', False))
+                    partial_ok = (p_active >= 1 and e_active >= 1
+                                  and total_alive >= 2
+                                  and ready_count == total_alive
+                                  and filled == total_alive)
+                    can_start = full_lobby or partial_ok
                 else:
                     can_start = (filled == self.requiredPlayers
                                  and ready_count == self.requiredPlayers
@@ -840,6 +858,11 @@ class _HostLobby:
                         f"COOP: {total_alive}/4 players connected  —  "
                         f"host can start with 1 to 4 players",
                         _font(16), _PARCHMENT, status_y)
+                elif self.modeKey == 'LAST_STAND':
+                    _drawCenteredText(self.screen,
+                        f"Waves Coop: {total_alive} player(s) connected  —  "
+                        f"host can start with 1 to 4 players",
+                        _font(16), _PARCHMENT, status_y)
                 elif total_alive > self.requiredPlayers:
                     extra = total_alive - self.requiredPlayers
                     _drawCenteredText(self.screen,
@@ -847,10 +870,18 @@ class _HostLobby:
                         f"choose a larger mode or have someone leave",
                         _font(16), (255, 180, 100), status_y)
                 elif filled < self.requiredPlayers:
-                    need = self.requiredPlayers - filled
-                    _drawCenteredText(self.screen,
-                        f"Waiting for {need} player(s)…",
-                        _font(16), _PARCHMENT, status_y)
+                    half = self.requiredPlayers // 2
+                    p_ok = any(self.slots.get(s, {}).get('alive') for s in range(half))
+                    e_ok = any(self.slots.get(s, {}).get('alive') for s in range(half, self.requiredPlayers))
+                    if self.modeKey in ('2v2', '3v3', '4v4') and p_ok and e_ok:
+                        _drawCenteredText(self.screen,
+                            f"Partial lobby — empty slots give the solo player a bigger army. Ready to start!",
+                            _font(16), (180, 220, 140), status_y)
+                    else:
+                        need = self.requiredPlayers - filled
+                        _drawCenteredText(self.screen,
+                            f"Waiting for {need} player(s)…",
+                            _font(16), _PARCHMENT, status_y)
 
                 if click:
                     # Swatch click (only slot 0 allowed here, but loop is cheap)
