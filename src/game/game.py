@@ -649,13 +649,13 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
         W, H = self.mapWidth, self.mapHeight
         n    = self._waveNumber
 
-        # Gradual escalation — starts small, grows each wave
-        # Wave 1: 4 inf | Wave 3: 8+2cav | Wave 5: 12+4cav+2hvy | Wave 7+: adds art
+        # Faster escalation — stays interesting from wave 1
+        # Wave 1: 8inf | Wave 2: 10inf+2cav | Wave 3: 12inf+4cav+2hvy | Wave 4+: adds art
         composition = {
-            'infantry':       2 + n * 2,
-            'cavalry':        max(0, n - 2),
-            'heavy_infantry': max(0, n - 4),
-            'artillery':      max(0, n - 6),
+            'infantry':       6 + n * 2,
+            'cavalry':        max(0, n - 1) * 2,
+            'heavy_infantry': max(0, n - 2) * 2,
+            'artillery':      max(0, n - 3),
         }
         spawn_x  = W - 60
         cy       = H // 2
@@ -707,10 +707,12 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
         ('artillery',      0.05),
     )
 
+    _PER_PLAYER_CAP = 55
+
     def _teamCap(self, team: str) -> int:
-        """Max units a team is allowed to field at once. Prevents outpost
-        spawning from piling up indefinitely."""
-        return 80 if self.matchMode in ('2v2', 'COOP') else 55
+        """Max units a team is allowed to field at once (single-player / COOP).
+        In slot-based modes each player has their own cap checked per-slot."""
+        return self._PER_PLAYER_CAP
 
     def _pickSpawnUnitType(self) -> str:
         r   = random.random()
@@ -744,24 +746,28 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
                 continue
             op.spawnTimer = 0
 
-            # Respect team cap
-            team_count = sum(1 for u in self.units if u.team == op.team)
-            if team_count >= self._teamCap(op.team):
-                continue
+            # Determine next slot in round-robin before cap check
+            team_slots = self._teamSlots(op.team)
+            if team_slots:
+                op._spawnRot = (getattr(op, '_spawnRot', -1) + 1) % len(team_slots)
+                next_slot = team_slots[op._spawnRot]
+                # Per-player cap: count only units owned by this slot
+                slot_count = sum(1 for u in self.units
+                                 if getattr(u, 'controller', -1) == next_slot)
+                if slot_count >= self._PER_PLAYER_CAP:
+                    continue
+            else:
+                # AI-only side (e.g. COOP enemy) — check whole-team cap
+                team_count = sum(1 for u in self.units if u.team == op.team)
+                if team_count >= self._teamCap(op.team):
+                    continue
+                next_slot = -1
 
             utype = self._pickSpawnUnitType()
             offX  = random.uniform(-24, 24)
             offY  = random.uniform(-24, 24)
             u = Unit(op.x + offX, op.y + offY, op.team, utype)
-
-            # Round-robin so every teammate gets an equal share of output.
-            # AI-only sides (e.g. COOP enemy) return no slots → controller -1.
-            team_slots = self._teamSlots(op.team)
-            if team_slots:
-                op._spawnRot = (getattr(op, '_spawnRot', -1) + 1) % len(team_slots)
-                u.controller = team_slots[op._spawnRot]
-            else:
-                u.controller = -1
+            u.controller = next_slot
 
             if self.netRole == 'host':
                 self._netIdSeq += 1
