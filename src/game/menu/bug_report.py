@@ -7,6 +7,7 @@ import datetime
 import json
 import os
 import platform
+import ssl
 import threading
 import urllib.error
 import urllib.request
@@ -15,17 +16,23 @@ import pygame
 
 from src.constants import SCREEN_WIDTH, SCREEN_HEIGHT
 from src.game.menu._common import (
-    _DARK_BG, _PARCHMENT, _GOLD, _GOLD_LIGHT, _MUTED, _DIM, _WHITE,
-    _BTN_BG, _BTN_BG_HOVER,
-    _font,
+    _GOLD, _GOLD_LIGHT, _BTN_BG, _BTN_BG_HOVER, _font,
 )
+
+# Dark-theme colors for this screen (the _common palette is light/ivory)
+_BG         = (18,  14,  10)
+_TEXT       = (235, 225, 200)
+_SUBTLE     = (160, 140, 110)
+_DIMMED     = (100,  85,  65)
+_BTN_DARK   = ( 45,  38,  28)
+_BTN_HOVER  = ( 65,  55,  38)
 
 try:
     from src.version import VERSION
 except Exception:
     VERSION = '?'
 
-DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1496212886824026376/fkwWYOiIA5WDf5-dnPAqvKYueEHZfWYEN27lYqYBSD4zmambwVM7TPYnu5Z5HL3pAV9H'
+DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1496220018092802320/61r8JhrpGYJvcct1HFu1E6eZn_Zlf_HOXee9TxInNrafnQkyYpqLaceURlg97tLmxilE'
 
 _LOCAL_FILE = os.path.join(os.getcwd(), 'bug_reports.txt')
 _MAX_CHARS  = 800
@@ -34,7 +41,8 @@ _BOX_H      = 420
 _INPUT_H    = 200
 
 
-def _send_report(description: str):
+def _send_report(description: str) -> tuple[bool, str]:
+    """Returns (discord_ok, error_msg). error_msg is '' on success."""
     ts   = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')
     sys_ = f"{platform.system()} {platform.release()}"
     full = (f"**Nerds at War {VERSION}** — {ts}\n"
@@ -46,15 +54,23 @@ def _send_report(description: str):
         req = urllib.request.Request(
             DISCORD_WEBHOOK_URL,
             data=payload,
-            headers={'Content-Type': 'application/json'},
+            headers={
+                'Content-Type': 'application/json',
+                'User-Agent': 'NerdsAtWar/1.0',
+            },
             method='POST',
         )
         try:
-            urllib.request.urlopen(req, timeout=8)
-        except (urllib.error.URLError, OSError):
-            _save_locally(full)
+            ctx = ssl.create_default_context()
+            urllib.request.urlopen(req, timeout=8, context=ctx)
+            return True, ''
+        except Exception as e:
+            err = str(e)
+            _save_locally(full + f'\n[Discord error: {err}]')
+            return False, err
     else:
         _save_locally(full)
+        return False, ''
 
 
 def _save_locally(text: str):
@@ -77,7 +93,8 @@ class BugReportScreen:
         self._clock  = clock
         self._bg     = bg
         self._text   = ''
-        self._status = None   # None | 'sending' | 'sent' | 'saved'
+        self._status = None   # None | 'sending' | 'sent' | 'saved' | 'error'
+        self._error  = ''
         self._cursor_tick = 0
 
         cx = SCREEN_WIDTH  // 2
@@ -109,7 +126,7 @@ class BugReportScreen:
                     if event.type == pygame.QUIT:
                         return
                     if event.type == pygame.KEYDOWN:
-                        if self._status in ('sent', 'saved'):
+                        if self._status in ('sent', 'saved', 'error'):
                             return
                         if event.key == pygame.K_ESCAPE:
                             return
@@ -123,7 +140,7 @@ class BugReportScreen:
                             if ch.isprintable() or ch == '\t':
                                 self._text += ch
                     if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                        if self._status in ('sent', 'saved'):
+                        if self._status in ('sent', 'saved', 'error'):
                             return
                         if self._send_rect.collidepoint(mx, my):
                             self._submit()
@@ -143,8 +160,14 @@ class BugReportScreen:
         desc = self._text.strip()
 
         def _worker():
-            _send_report(desc)
-            self._status = 'saved' if not DISCORD_WEBHOOK_URL else 'sent'
+            ok, err = _send_report(desc)
+            if ok:
+                self._status = 'sent'
+            elif err:
+                self._status = 'error'
+                self._error  = err[:120]
+            else:
+                self._status = 'saved'
 
         threading.Thread(target=_worker, daemon=True).start()
 
@@ -158,19 +181,19 @@ class BugReportScreen:
         surf.blit(dim, (0, 0))
 
         box = self._box
-        pygame.draw.rect(surf, _DARK_BG, box, border_radius=8)
-        pygame.draw.rect(surf, _GOLD,    box, 2, border_radius=8)
+        pygame.draw.rect(surf, _BG,   box, border_radius=8)
+        pygame.draw.rect(surf, _GOLD, box, 2, border_radius=8)
 
         cx = box.centerx
 
         # Title
         tf = _font(28, bold=True)
-        tt = tf.render("Report a Bug", True, _PARCHMENT)
+        tt = tf.render("Report a Bug", True, _TEXT)
         surf.blit(tt, (cx - tt.get_width() // 2, box.top + 16))
 
         # Subtitle
         sf = _font(16)
-        st = sf.render("Describe what went wrong (then press Send).", True, _MUTED)
+        st = sf.render("Describe what went wrong (then press Send).", True, _SUBTLE)
         surf.blit(st, (cx - st.get_width() // 2, box.top + 58))
 
         pygame.draw.line(surf, _GOLD,
@@ -181,18 +204,26 @@ class BugReportScreen:
         pygame.draw.rect(surf, (30, 26, 20), ir, border_radius=4)
         pygame.draw.rect(surf, _GOLD, ir, 1, border_radius=4)
 
-        if self._status in ('sent', 'saved'):
-            msg   = "Sent! Thank you." if self._status == 'sent' else "Saved to bug_reports.txt."
-            mf    = _font(22, bold=True)
-            ms    = mf.render(msg, True, (120, 220, 120))
-            surf.blit(ms, (cx - ms.get_width() // 2,
-                           ir.centery - ms.get_height() // 2))
+        if self._status in ('sent', 'saved', 'error'):
+            if self._status == 'sent':
+                msg, col = "Sent! Thank you.", (120, 220, 120)
+            elif self._status == 'saved':
+                msg, col = "Saved to bug_reports.txt.", (120, 220, 120)
+            else:
+                msg, col = "Discord error (saved locally):", (220, 120, 80)
+            mf = _font(20, bold=True)
+            ms = mf.render(msg, True, col)
+            surf.blit(ms, (cx - ms.get_width() // 2, ir.y + 20))
+            if self._status == 'error' and self._error:
+                ef = _font(14)
+                es = ef.render(self._error, True, _SUBTLE)
+                surf.blit(es, (cx - es.get_width() // 2, ir.y + 52))
             cf = _font(15)
-            cs = cf.render("Press any key or click to close.", True, _MUTED)
+            cs = cf.render("Press any key or click to close.", True, _SUBTLE)
             surf.blit(cs, (cx - cs.get_width() // 2, ir.centery + 30))
         elif self._status == 'sending':
             sf2  = _font(18)
-            ss   = sf2.render("Sending…", True, _MUTED)
+            ss   = sf2.render("Sending…", True, _SUBTLE)
             surf.blit(ss, (cx - ss.get_width() // 2,
                            ir.centery - ss.get_height() // 2))
         else:
@@ -217,16 +248,16 @@ class BugReportScreen:
                         line = test
                     else:
                         if line:
-                            surf.blit(tf2.render(line, True, _WHITE), (ir.x + pad, y))
+                            surf.blit(tf2.render(line, True, _TEXT), (ir.x + pad, y))
                             y += lh
                         line = w
                 if line:
-                    surf.blit(tf2.render(line, True, _WHITE), (ir.x + pad, y))
+                    surf.blit(tf2.render(line, True, _TEXT), (ir.x + pad, y))
                     y += lh
 
             # Char counter
             cf3 = _font(13)
-            cc  = cf3.render(f"{len(self._text)}/{_MAX_CHARS}", True, _DIM)
+            cc  = cf3.render(f"{len(self._text)}/{_MAX_CHARS}", True, _DIMMED)
             surf.blit(cc, (ir.right - cc.get_width() - 6, ir.bottom + 4))
 
         # Buttons
@@ -235,9 +266,9 @@ class BugReportScreen:
             (self._cancel_rect, 'Cancel', True),
         ):
             hover = rect.collidepoint(mx, my) and active
-            bg    = _BTN_BG_HOVER if hover else _BTN_BG
-            brd   = _GOLD_LIGHT if hover else (_GOLD if active else _DIM)
-            col   = _WHITE if hover else (_PARCHMENT if active else _DIM)
+            bg    = _BTN_HOVER if hover else _BTN_DARK
+            brd   = _GOLD_LIGHT if hover else (_GOLD if active else _DIMMED)
+            col   = _TEXT if hover else (_TEXT if active else _DIMMED)
             pygame.draw.rect(surf, bg,  rect, border_radius=5)
             pygame.draw.rect(surf, brd, rect, 2 if hover else 1, border_radius=5)
             lf = _font(22, bold=hover)

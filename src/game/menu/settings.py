@@ -54,8 +54,9 @@ class SettingsMenu:
         display_y    = slider_y0 + len(SLIDERS) * slider_dy + 30
         display_rect = pygame.Rect(cx - 220, display_y, 440, 50)
 
-        keys_rect = pygame.Rect(cx - 220, display_y + 72, 440, 44)
-        back_rect = pygame.Rect(cx - 90, SCREEN_HEIGHT - 76, 180, 44)
+        keys_rect   = pygame.Rect(cx - 220, display_y + 72,  440, 44)
+        report_rect = pygame.Rect(cx - 220, display_y + 128, 440, 44)
+        back_rect   = pygame.Rect(cx - 90, SCREEN_HEIGHT - 76, 180, 44)
 
         slider_rects = {}
         for i, (key, _) in enumerate(SLIDERS):
@@ -141,6 +142,10 @@ class SettingsMenu:
             keys_hover = _drawButton(self.screen, keys_rect,
                                      "Keybindings →", mx, my)
 
+            # Bug report button
+            report_hover = _drawButton(self.screen, report_rect,
+                                       "Report a Bug →", mx, my)
+
             back_hover = _drawButton(self.screen, back_rect, "Back", mx, my)
 
             ct = _font(14).render("Made with Claude :)", True, _DIM)
@@ -161,6 +166,13 @@ class SettingsMenu:
                 result = self._keybindsScreen()
                 if result == 'quit':
                     return 'quit'
+                continue
+
+            if click and report_hover:
+                audio.play_sfx('click')
+                from src.game.menu.bug_report import BugReportScreen
+                BugReportScreen(self.screen, self.clock,
+                                self.screen.copy()).run()
                 continue
 
             if click and back_hover:
