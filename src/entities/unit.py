@@ -246,8 +246,10 @@ class Unit:
         if focus:
             dist = self.distanceTo(focus)
             if dist <= self.attackRange:
-                # Artillery: stop moving so it can deploy and fire
-                if self.unitType == 'artillery' and not self.deployed:
+                # AI artillery: stop moving so it can deploy and fire.
+                # Player artillery keeps its target so the player can still move it away.
+                if (self.unitType == 'artillery' and not self.deployed
+                        and getattr(self, 'controller', 0) < 0):
                     self.targetX = self.x
                     self.targetY = self.y
                 # AI cavalry: hold attack until charge bonus (2x damage) is ready

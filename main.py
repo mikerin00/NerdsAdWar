@@ -214,36 +214,42 @@ if __name__ == '__main__':
                 continue
 
             if mode == 'multiplayer':
-                outcome, config, sessions = MultiplayerMenu(screen, clock).run()
-                if outcome == 'quit':
-                    break
-                if outcome == 'back' or outcome != 'start':
-                    continue
+                _mp_done = False
+                while not _mp_done:
+                    outcome, config, sessions = MultiplayerMenu(screen, clock).run()
+                    if outcome == 'quit':
+                        _mp_done = True
+                        break
+                    if outcome == 'back' or outcome != 'start':
+                        break  # back to main menu
 
-                audio.stop_music()
-                try:
-                    game_outcome = Game(
-                        seed         = config['seed'],
-                        screen       = screen,
-                        clock        = clock,
-                        biome        = config['biome'],
-                        difficulty   = config['difficulty'],
-                        gamemode     = config['gamemode'],
-                        netRole      = config['role'],
-                        sessions     = sessions,
-                        mode         = config.get('mode', '1v1'),
-                        mySlot       = config.get('mySlot', 0),
-                        slotNames    = config.get('slotNames', []),
-                        slotColors   = config.get('slotColors', []),
-                        customMap    = config.get('customMap'),
-                        botSlots     = config.get('botSlots', []),
-                        coopPlayers  = config.get('coopPlayers'),
-                    ).run()
-                finally:
-                    for s in sessions or []:
-                        s.close()
+                    audio.stop_music()
+                    try:
+                        game_outcome = Game(
+                            seed         = config['seed'],
+                            screen       = screen,
+                            clock        = clock,
+                            biome        = config['biome'],
+                            difficulty   = config['difficulty'],
+                            gamemode     = config['gamemode'],
+                            netRole      = config['role'],
+                            sessions     = sessions,
+                            mode         = config.get('mode', '1v1'),
+                            mySlot       = config.get('mySlot', 0),
+                            slotNames    = config.get('slotNames', []),
+                            slotColors   = config.get('slotColors', []),
+                            customMap    = config.get('customMap'),
+                            botSlots     = config.get('botSlots', []),
+                            coopPlayers  = config.get('coopPlayers'),
+                        ).run()
+                    finally:
+                        for s in sessions or []:
+                            s.close()
 
-                if game_outcome == 'quit':
+                    if game_outcome == 'quit':
+                        _mp_done = True
+
+                if _mp_done:
                     break
                 continue
 
