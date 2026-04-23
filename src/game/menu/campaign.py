@@ -600,18 +600,18 @@ WORLDS = [
     {
         'id':      'home',
         'type':    'story',
-        'title':   'Het Paleis',
-        'villain': 'Hoe het begon…',
+        'title':   'The Palace',
+        'villain': 'How it began…',
         'portrait': 'bronisz',
-        'desc':    "Een feest. Een ontvoering. Een briefje.\n"
-                   "En één man die niets heeft meegekregen.",
+        'desc':    "A party. A kidnapping. A note.\n"
+                   "And one man who missed all of it.",
         'dialog_keys': ['prologue'],
         'missions': [],
     },
     {
         'id':      'koen',
         'title':   'The Borderlands',
-        'villain': 'Koen de Stuiterbal',
+        'villain': 'Koen the Bouncy',
         'portrait': 'koen',
         'desc':    "The border region — open fields, scattered forests,\n"
                    "and one very distracted defender.",
@@ -620,7 +620,7 @@ WORLDS = [
     {
         'id':      'tim',
         'title':   'The River Valley',
-        'villain': 'Tim de Onzekere',
+        'villain': 'Tim the Unsure',
         'portrait': 'tim',
         'desc':    "A valley crossed by rivers and bridges.\n"
                    "Tim is fairly sure he's on the right one.",
@@ -629,7 +629,7 @@ WORLDS = [
     {
         'id':      'mika',
         'title':   'The Dry Plains',
-        'villain': 'Mika de Mespunt',
+        'villain': 'Mika the Blade',
         'portrait': 'mika',
         'desc':    "Open, harsh, unforgiving terrain.\n"
                    "Mika chose it on purpose.",
@@ -638,7 +638,7 @@ WORLDS = [
     {
         'id':      'luuk',
         'title':   'The Highlands',
-        'villain': 'Luuk de Toren',
+        'villain': 'Luuk the Tower',
         'portrait': 'luuk',
         'desc':    "The highland gateway to Matthijs' fort.\n"
                    "Luuk is here. He figured you'd come.",
@@ -647,7 +647,7 @@ WORLDS = [
     {
         'id':      'matthijs',
         'title':   "Matthijs' Fort",
-        'villain': 'Generaal Matthijs',
+        'villain': 'General Matthijs',
         'portrait': 'matthijs',
         'desc':    "The final stronghold. Matthijs awaits.\n"
                    "Bronisz is already on his third course.",
@@ -906,7 +906,7 @@ class CampaignMenu:
                                        rect.centery - as_.get_height() // 2))
 
             _button(self.screen, back_r,  "Back", mx, my)
-            enter_label = ("Bekijk Verhaal  ►" if is_story
+            enter_label = ("View Story  ►" if is_story
                            else "Enter World  ►" if not locked else "Locked")
             _button(self.screen, enter_r, enter_label,
                     mx, my, enabled=not locked)

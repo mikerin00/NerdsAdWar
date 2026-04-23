@@ -32,83 +32,83 @@ DIALOGS = {
 # ── Campaign intro & outro ───────────────────────────────────────────────────
 
 'prologue': [
-    # ── Scene 1: Het Feest ───────────────────────────────────────────────────
+    # ── Scene 1: The Party ───────────────────────────────────────────────────
     {'speaker': 'Matthijs',  'portrait': 'matthijs', 'side': 'right',
-     'text': "Koen. Stop met praten."},
+     'text': "Koen. Stop talking."},
     {'speaker': 'Koen',      'portrait': 'koen',     'side': 'right',
-     'text': "Maar hij BEWOOG ik zweer het die steen—"},
+     'text': "But it MOVED I swear that rock—"},
     {'speaker': 'Matthijs',  'portrait': 'matthijs', 'side': 'right',
      'text': "KOEN."},
     {'speaker': 'Koen',      'portrait': 'koen',     'side': 'right',
-     'text': "Ja baas."},
+     'text': "Yes boss."},
     {'speaker': 'Matthijs',  'portrait': 'matthijs', 'side': 'right',
-     'text': "Kijk daar. Achter de bar."},
+     'text': "Look there. Behind the bar."},
     {'speaker': 'Koen',      'portrait': 'koen',     'side': 'right',
-     'text': "Ohhhh. Is dat... een prinses?"},
+     'text': "Ohhhh. Is that... a princess?"},
     {'speaker': 'Matthijs',  'portrait': 'matthijs', 'side': 'right',
-     'text': "Ze is prachtig. Elegant. Gevangen in dit saaie feest,\n"
-             "omringd door mensen die haar niet begrijpen.\n"
-             "Ik moet haar bevrijden."},
+     'text': "She is radiant. Elegant. Trapped at this dull party,\n"
+             "surrounded by people who do not understand her.\n"
+             "I must set her free."},
     {'speaker': 'Bronisz',   'portrait': 'bronisz',  'side': 'right',
      'text': "..."},
     {'speaker': 'Koen',      'portrait': 'koen',     'side': 'right',
-     'text': "WE GAAN OP MISSIE!!!"},
-    # ── Scene 2: Het Plan ────────────────────────────────────────────────────
+     'text': "WE'RE GOING ON A MISSION!!!"},
+    # ── Scene 2: The Plan ────────────────────────────────────────────────────
     {'speaker': 'Matthijs',  'portrait': 'matthijs', 'side': 'right',
-     'text': "Tim. Mika. Luuk. Bereid je voor.\n"
-             "We verlaten het paleis. Vanavond. Met haar."},
+     'text': "Tim. Mika. Luuk. Prepare yourselves.\n"
+             "We leave the palace. Tonight. With her."},
     {'speaker': 'Bronisz',   'portrait': 'bronisz',  'side': 'right',
      'text': "..."},
     {'speaker': 'Bronisz',   'portrait': 'bronisz',  'side': 'right',
-     'text': "Het feest is toch al saai."},
+     'text': "The party was boring anyway."},
     {'speaker': 'Bronisz',   'portrait': 'bronisz',  'side': 'right',
-     'text': "Ik doe mee."},
+     'text': "I'm in."},
     {'speaker': 'Matthijs',  'portrait': 'matthijs', 'side': 'right',
-     'text': "...Ze wil mee."},
+     'text': "...She wants to come."},
     {'speaker': 'Matthijs',  'portrait': 'matthijs', 'side': 'right',
-     'text': "Dit is het mooiste moment van mijn leven."},
+     'text': "This is the greatest moment of my life."},
     {'speaker': 'Koen',      'portrait': 'koen',     'side': 'right',
-     'text': "WAT GAAN WE ETE— ik bedoel. Wij zijn er klaar voor, baas."},
-    # ── Scene 3: De Ochtend ──────────────────────────────────────────────────
-    {'speaker': 'De Hero',   'portrait': 'hero',     'side': 'left',
+     'text': "WHAT ARE WE EAT— I mean. We are ready, boss."},
+    # ── Scene 3: The Morning ─────────────────────────────────────────────────
+    {'speaker': 'The Hero',  'portrait': 'hero',     'side': 'left',
      'text': "..."},
-    {'speaker': 'De Hero',   'portrait': 'hero',     'side': 'left',
+    {'speaker': 'The Hero',  'portrait': 'hero',     'side': 'left',
      'text': "..."},
-    {'speaker': 'De Hero',   'portrait': 'hero',     'side': 'left',
-     'text': "Waar is iedereen."},
+    {'speaker': 'The Hero',  'portrait': 'hero',     'side': 'left',
+     'text': "Where is everyone."},
     {'speaker': 'Matthijs',  'portrait': 'matthijs', 'side': 'right',
-     'text': "Wees niet jaloers.\nIk heb gevonden wat ik zocht.\nZij is weg. Wij zijn weg.  — Matthijs"},
-    {'speaker': 'De Hero',   'portrait': 'hero',     'side': 'left',
+     'text': "Don't be jealous.\nI found what I was looking for.\nShe is gone. We are gone.  — Matthijs"},
+    {'speaker': 'The Hero',  'portrait': 'hero',     'side': 'left',
      'text': "..."},
-    {'speaker': 'De Hero',   'portrait': 'hero',     'side': 'left',
-     'text': "Ik ga ze halen."},
+    {'speaker': 'The Hero',  'portrait': 'hero',     'side': 'left',
+     'text': "I'm going after them."},
 ],
 
 'campaign_intro': [
-    {'speaker': 'De Hero',   'portrait': 'hero',     'side': 'left',
+    {'speaker': 'The Hero',  'portrait': 'hero',     'side': 'left',
      'text': "..."},
-    {'speaker': 'De Hero',   'portrait': 'hero',     'side': 'left',
+    {'speaker': 'The Hero',  'portrait': 'hero',     'side': 'left',
      'text': "..."},
     {'speaker': 'Matthijs',  'portrait': 'matthijs', 'side': 'right',
-     'text': "Wees niet jaloers.\n— Generaal Matthijs"},
-    {'speaker': 'De Hero',   'portrait': 'hero',     'side': 'left',
+     'text': "Don't be jealous.\n— General Matthijs"},
+    {'speaker': 'The Hero',  'portrait': 'hero',     'side': 'left',
      'text': "..."},
-    {'speaker': 'De Hero',   'portrait': 'hero',     'side': 'left',
-     'text': "Oké."},
+    {'speaker': 'The Hero',  'portrait': 'hero',     'side': 'left',
+     'text': "Fine."},
 ],
 
 'campaign_outro': [
     {'speaker': 'Bronisz',   'portrait': 'bronisz',  'side': 'right',
-     'text': "Dat was aangenamer dan verwacht."},
-    {'speaker': 'De Hero',   'portrait': 'hero',     'side': 'left',
-     'text': "Jij bent de prinses."},
+     'text': "That was more pleasant than expected."},
+    {'speaker': 'The Hero',  'portrait': 'hero',     'side': 'left',
+     'text': "You are the princess."},
     {'speaker': 'Bronisz',   'portrait': 'bronisz',  'side': 'right',
-     'text': "Dat was de naam van mijn boot."},
-    {'speaker': 'De Hero',   'portrait': 'hero',     'side': 'left',
+     'text': "That was the name of my boat."},
+    {'speaker': 'The Hero',  'portrait': 'hero',     'side': 'left',
      'text': "..."},
     {'speaker': 'Bronisz',   'portrait': 'bronisz',  'side': 'right',
-     'text': "Ik heb de desserts meegenomen.\nPrettige reis."},
-    {'speaker': 'De Hero',   'portrait': 'hero',     'side': 'left',
+     'text': "I took the desserts.\nSafe travels."},
+    {'speaker': 'The Hero',  'portrait': 'hero',     'side': 'left',
      'text': "..."},
 ],
 
@@ -503,12 +503,12 @@ class StoryDialogScreen:
         done = _TYPE_SPEED == 0 or self._char_idx >= len(text)
         if done:
             is_last  = self._idx >= len(self._lines) - 1
-            label    = "[ Sluiten ]" if is_last else "[ Verder ]"
+            label    = "[ Close ]" if is_last else "[ Continue ]"
             hint     = self._font(16).render(label, True, (180, 150, 80))
             screen.blit(hint, hint.get_rect(bottomright=(W - 24, H - 10)))
 
         # ESC skip hint
-        skip_hint = self._font(14).render("[ ESC — overslaan ]", True, (120, 100, 60))
+        skip_hint = self._font(14).render("[ ESC — skip ]", True, (120, 100, 60))
         screen.blit(skip_hint, skip_hint.get_rect(bottomleft=(16, H - 10)))
 
         pygame.display.flip()

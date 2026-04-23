@@ -1113,9 +1113,10 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
             u.y += (u._snapY - u.y) * BLEND
 
     def _applySnapshot(self, data):
-        # Freeze timer + winner are straight copies
+        # Freeze timer + winner + frame clock are straight copies from host
         self.freezeTimer  = data.get('fz', 0)
         self.winner       = data.get('w')
+        self._frameCount  = data.get('f',  self._frameCount)
         self._waveNumber  = data.get('wv', self._waveNumber)
         self._waveTimer   = data.get('wt', self._waveTimer)
 
