@@ -650,12 +650,12 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
         n    = self._waveNumber
 
         # Faster escalation — stays interesting from wave 1
-        # Wave 1: 8inf | Wave 2: 10inf+2cav | Wave 3: 12inf+4cav+2hvy | Wave 4+: adds art
+        # Wave 1: 8inf | Wave 2: 10inf+2cav | Wave 3: 12inf+4cav+2hvy | Wave 5+: 1 art, Wave 8+: 2 art max
         composition = {
             'infantry':       6 + n * 2,
             'cavalry':        max(0, n - 1) * 2,
             'heavy_infantry': max(0, n - 2) * 2,
-            'artillery':      max(0, n - 3),
+            'artillery':      min(2, max(0, n - 4)),
         }
         spawn_x  = W - 60
         cy       = H // 2
@@ -707,12 +707,18 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
         ('artillery',      0.05),
     )
 
-    _PER_PLAYER_CAP = 40
+    _TOTAL_PLAYER_CAP = 100   # shared budget; split equally among active player slots
+
+    @property
+    def _perPlayerCap(self) -> int:
+        """100 total slots divided by the number of active player-side participants."""
+        n = max(1, len(self._teamSlots('player')))
+        return max(10, self._TOTAL_PLAYER_CAP // n)
 
     def _teamCap(self, team: str) -> int:
         """Max units a team is allowed to field at once (single-player / COOP).
         In slot-based modes each player has their own cap checked per-slot."""
-        return self._PER_PLAYER_CAP
+        return self._perPlayerCap
 
     def _pickSpawnUnitType(self) -> str:
         r   = random.random()
@@ -754,7 +760,7 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
                 # Per-player cap: count only units owned by this slot
                 slot_count = sum(1 for u in self.units
                                  if getattr(u, 'controller', -1) == next_slot)
-                if slot_count >= self._PER_PLAYER_CAP:
+                if slot_count >= self._perPlayerCap:
                     continue
             else:
                 # AI-only side (e.g. COOP enemy) — check whole-team cap

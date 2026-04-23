@@ -228,7 +228,15 @@ class Unit:
                     self.attackCooldown = self.attackRate
             return
 
+        focus = self.attackTarget or _nearest
+
         if self.unitType == 'artillery':
+            # AI artillery stops to deploy when enemy is in range — must happen
+            # before the deploy timer so the AI can't overwrite the target first.
+            if (not self.deployed and getattr(self, 'controller', 0) < 0
+                    and focus and self.distanceTo(focus) <= self.attackRange):
+                self.targetX = self.x
+                self.targetY = self.y
             if self.undeploying:
                 self.undeployTimer -= 1
                 if self.undeployTimer <= 0:
@@ -242,16 +250,9 @@ class Unit:
                     self.deployTimer = min(90, self.deployTimer + 1)
                     self.deployed    = self.deployTimer >= 90
 
-        focus = self.attackTarget or _nearest
         if focus:
             dist = self.distanceTo(focus)
             if dist <= self.attackRange:
-                # AI artillery: stop moving so it can deploy and fire.
-                # Player artillery keeps its target so the player can still move it away.
-                if (self.unitType == 'artillery' and not self.deployed
-                        and getattr(self, 'controller', 0) < 0):
-                    self.targetX = self.x
-                    self.targetY = self.y
                 # AI cavalry: hold attack until charge bonus (2x damage) is ready
                 if (self.unitType == 'cavalry' and self.team == 'enemy'
                         and self.chargeFrames < 45 and dist > self.radius * 3):
