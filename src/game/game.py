@@ -655,7 +655,7 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
             'infantry':       6 + n * 2,
             'cavalry':        max(0, n - 1) * 2,
             'heavy_infantry': max(0, n - 2) * 2,
-            'artillery':      min(2, max(0, n - 4)),
+            'artillery':      min(5, max(0, n - 4)),
         }
         spawn_x  = W - 60
         cy       = H // 2
