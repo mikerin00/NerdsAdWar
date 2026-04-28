@@ -125,31 +125,6 @@ class FormationMixin:
                 u.reformTimer = 105
             return
 
-        if len(infantry) == 1:
-            infantry[0].inSquare     = True
-            infantry[0].reformTimer  = 105
-            infantry[0].attackTarget = None
-            return
-
-        cx      = sum(u.x for u in infantry) / len(infantry)
-        cy      = sum(u.y for u in infantry) / len(infantry)
-        nSide   = max(1, math.ceil(len(infantry) / 4))
-        spacing = 34
-        half    = nSide * spacing / 2
-
-        sides = [
-            [(-half + (i + 0.5) * spacing, -half,  270) for i in range(nSide)],
-            [(half,  -half + (i + 0.5) * spacing,    0) for i in range(nSide)],
-            [(half  - (i + 0.5) * spacing,  half,   90) for i in range(nSide)],
-            [(-half,  half  - (i + 0.5) * spacing, 180) for i in range(nSide)],
-        ]
-        positions = [p for side in sides for p in side]
-
-        for i, u in enumerate(infantry):
-            ox, oy, face   = positions[i % len(positions)]
-            u.targetX      = cx + ox
-            u.targetY      = cy + oy
-            u.angle        = face
+        for u in infantry:
             u.inSquare     = True
-            u.reformTimer  = 105
             u.attackTarget = None

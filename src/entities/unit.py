@@ -121,7 +121,7 @@ class Unit:
 
         # Heavy infantry: steadfast 15% res; tanky vs infantry volleys, weak vs cavalry
         if self.unitType == 'heavy_infantry':
-            type_mod = 0.65 if sourceType == 'infantry' else (1.35 if sourceType == 'cavalry' else 1.0)
+            type_mod = 0.65 if sourceType == 'infantry' else (1.65 if sourceType == 'cavalry' else 1.0)
             amount *= 0.85 * type_mod * (0.55 if self.shieldWall else 1.0)
         if attacker is not None:
             angleToAttacker = self._angleTo(attacker.x, attacker.y)
