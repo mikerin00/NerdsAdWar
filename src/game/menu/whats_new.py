@@ -20,7 +20,12 @@ from src.game.menu._common import (
 # ── Changelog ─────────────────────────────────────────────────────────────
 # Add a new key here for every release that has player-facing changes.
 CHANGELOG = {
-    "v1.31": [
+    "v1.35": [
+        "Accounts werken nu volledig lokaal — geen serververbinding nodig om in te loggen",
+        "Registreren en inloggen werkt altijd, ook zonder internet",
+        "Campaign en tutorial voortgang opgeslagen per account",
+    ],
+    "v1.34": [
         "Custom artwork: menu background, all 5 campaign worlds, and all 9 biome map previews",
         "Multiplayer: always 8 slots (4v4), clear Team 1 / Team 2 layout with divider",
         "Waves mode: playable with up to 8 players — all on the same team against the enemy",

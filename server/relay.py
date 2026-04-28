@@ -437,19 +437,27 @@ def _handle(conn, addr):
 
     conn.settimeout(None)
 
-    if   t == 'rl_host':      _handle_host(conn, d)
-    elif t == 'rl_data':      _handle_data(conn, d)
-    elif t == 'rl_join':      _handle_join(conn, d)
-    elif t == 'rl_list':      _handle_list(conn)
-    elif t == 'acc_register':     _handle_acc_register(conn, d)
-    elif t == 'acc_login':        _handle_acc_login(conn, d)
-    elif t == 'acc_sync':         _handle_acc_sync(conn, d)
-    elif t == 'acc_heartbeat':    _handle_acc_heartbeat(conn, d)
-    elif t == 'acc_friend_add':   _handle_acc_friend_add(conn, d)
-    elif t == 'acc_friend_remove':_handle_acc_friend_remove(conn, d)
-    elif t == 'acc_friends_get':  _handle_acc_friends_get(conn, d)
-    else:
-        conn.close()
+    print(f'[relay] {addr[0]} → {t}', flush=True)
+    try:
+        if   t == 'rl_host':      _handle_host(conn, d)
+        elif t == 'rl_data':      _handle_data(conn, d)
+        elif t == 'rl_join':      _handle_join(conn, d)
+        elif t == 'rl_list':      _handle_list(conn)
+        elif t == 'acc_register':     _handle_acc_register(conn, d)
+        elif t == 'acc_login':        _handle_acc_login(conn, d)
+        elif t == 'acc_sync':         _handle_acc_sync(conn, d)
+        elif t == 'acc_heartbeat':    _handle_acc_heartbeat(conn, d)
+        elif t == 'acc_friend_add':   _handle_acc_friend_add(conn, d)
+        elif t == 'acc_friend_remove':_handle_acc_friend_remove(conn, d)
+        elif t == 'acc_friends_get':  _handle_acc_friends_get(conn, d)
+        else:
+            conn.close()
+    except Exception as e:
+        print(f'[relay] FOUT in {t}: {type(e).__name__}: {e}', flush=True)
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
