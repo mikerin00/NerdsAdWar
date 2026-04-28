@@ -20,7 +20,7 @@ from src.game.menu._common import (
 # ── Changelog ─────────────────────────────────────────────────────────────
 # Add a new key here for every release that has player-facing changes.
 CHANGELOG = {
-    "v1.35": [
+    "v1.36": [
         "Accounts werken nu volledig lokaal — geen serververbinding nodig om in te loggen",
         "Registreren en inloggen werkt altijd, ook zonder internet",
         "Campaign en tutorial voortgang opgeslagen per account",
