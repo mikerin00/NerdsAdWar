@@ -34,10 +34,12 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Tasks]
 Name: "desktopicon"; Description: "Desktop shortcut"; GroupDescription: "Additional options:"; Flags: unchecked
 
+[Dirs]
+Name: "{app}\maps"
+
 [Files]
 Source: "..\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\maps\*"; DestDir: "{app}\maps"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\assets\audio\music_menu_custom.mpeg"; DestDir: "{app}\assets\audio"; Flags: ignoreversion
+Source: "..\assets\audio\music_menu_custom.mpeg"; DestDir: "{app}\assets\audio"; Flags: ignoreversion skipifsourcedoesntexist
 
 [Icons]
 Name: "{group}\{#MyAppName}";           Filename: "{app}\{#MyAppExeName}"
