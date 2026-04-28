@@ -280,7 +280,6 @@ def _drawInfantry(screen, unit, ix, iy, color):
         pygame.draw.line(screen, WHITE, (ix - hs + 2, iy + hs - 5), (ix + hs - 2, iy + hs - 5), 1)
         pygame.draw.line(screen, WHITE, (ix - hs + 5, iy - hs + 2), (ix - hs + 5, iy + hs - 2), 1)
         pygame.draw.line(screen, WHITE, (ix + hs - 5, iy - hs + 2), (ix + hs - 5, iy + hs - 2), 1)
-        pygame.draw.rect(screen, (255, 165, 0), (ix - hs, iy - hs, s, s), 2)
         bx, by, fw = ix - hs, iy - hs - 10, s
 
     else:

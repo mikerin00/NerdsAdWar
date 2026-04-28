@@ -6,7 +6,7 @@ import math
 import pygame
 
 from src.constants import SCREEN_WIDTH, SCREEN_HEIGHT
-from src import audio
+from src import audio, accounts
 from src.version import VERSION
 
 from src.game.menu._common import (
@@ -15,6 +15,7 @@ from src.game.menu._common import (
     _makeParticles, _updateParticles, _drawParticles,
     _drawBackground, _font, _renderShadow, _drawDivider,
 )
+from src.game.menu.account_menu import _loadAvatarCircle, _drawDefaultAvatar
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -202,6 +203,10 @@ class MainMenu:
         self._help_rect = pygame.Rect(_ICON_PAD,    _ICON_PAD,
                                       _ICON_R * 2,  _ICON_R * 2)
 
+        # Profile badge (bottom-left corner)
+        self._profile_rect = pygame.Rect(12, SCREEN_HEIGHT - 58, 220, 46)
+        self._avatarCache: tuple | None = None   # (path, surface)
+
     def run(self):
         audio.play_music('menu')
         while True:
@@ -219,6 +224,9 @@ class MainMenu:
                     if self._help_rect.collidepoint(mx, my):
                         audio.play_sfx('click')
                         return 'whats_new'
+                    if self._profile_rect.collidepoint(mx, my):
+                        audio.play_sfx('click')
+                        return 'account'
                     for btn in self.buttons:
                         if btn.hover:
                             audio.play_sfx('click')
@@ -235,6 +243,42 @@ class MainMenu:
             _updateParticles(self.particles, self.prng)
             self._draw(mx, my)
             self.clock.tick(60)
+
+    def _drawProfileBadge(self, surf, mx, my):
+        user   = accounts.getActiveUser()
+        rect   = self._profile_rect
+        hover  = rect.collidepoint(mx, my)
+        bg     = _BTN_BG_HOVER if hover else _BTN_BG
+        brd    = _GOLD_LIGHT   if hover else _GOLD
+        pygame.draw.rect(surf, bg,  rect, border_radius=6)
+        pygame.draw.rect(surf, brd, rect, 1, border_radius=6)
+
+        av_r  = 17
+        av_cx = rect.x + 4 + av_r
+        av_cy = rect.centery
+
+        if user:
+            av_path = user.get('avatar')
+            if av_path:
+                if not (self._avatarCache and self._avatarCache[0] == av_path):
+                    self._avatarCache = (av_path, _loadAvatarCircle(av_path, av_r * 2))
+                av_surf = self._avatarCache[1] if self._avatarCache else None
+                if av_surf:
+                    surf.blit(av_surf, (av_cx - av_r, av_cy - av_r))
+                else:
+                    _drawDefaultAvatar(surf, av_cx, av_cy, av_r)
+            else:
+                _drawDefaultAvatar(surf, av_cx, av_cy, av_r)
+            pygame.draw.circle(surf, brd, (av_cx, av_cy), av_r + 1, 1)
+
+            nf = _font(16, bold=hover)
+            nt = nf.render(user['username'], True, _WHITE if hover else _PARCHMENT)
+            surf.blit(nt, (av_cx + av_r + 8, av_cy - nt.get_height() // 2))
+        else:
+            _drawDefaultAvatar(surf, av_cx, av_cy, av_r)
+            nf = _font(15)
+            nt = nf.render("Geen account", True, _MUTED)
+            surf.blit(nt, (av_cx + av_r + 8, av_cy - nt.get_height() // 2))
 
     def _draw(self, mx, my):
         surf = self.screen
@@ -283,5 +327,8 @@ class MainMenu:
         foot  = f"© 2025 Nerds at War  ·  {VERSION}  ·  All rights reserved"
         fw    = small.size(foot)[0]
         surf.blit(small.render(foot, True, _DIM), (cx - fw // 2, SCREEN_HEIGHT - 28))
+
+        # Profile badge (bottom-left)
+        self._drawProfileBadge(surf, mx, my)
 
         pygame.display.flip()

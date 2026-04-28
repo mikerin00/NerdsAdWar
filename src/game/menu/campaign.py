@@ -25,6 +25,10 @@ from src.game.menu._common import (
 
 PROGRESS_FILE = os.path.join(os.getcwd(), 'campaign_progress.json')
 
+def _progressFile() -> str:
+    from src import accounts
+    return accounts.campaignProgressFile()
+
 
 # ── Mission manifest ────────────────────────────────────────────────────────
 # Nodes placed along a rough diagonal from bottom-left to top-right, with the
@@ -33,7 +37,7 @@ PROGRESS_FILE = os.path.join(os.getcwd(), 'campaign_progress.json')
 MISSIONS = [
     {
         'id':   'm1_ochtendgloren',
-        'name': 'I · Dawn',
+        'name': '1 · Dawn',
         'area': 'koen', 'area_level': 1,
         'dialog_before': 'koen_intro', 'dialog_after': None,
         'brief': ("A small enemy patrol has crossed the border.\n"
@@ -51,32 +55,32 @@ MISSIONS = [
     },
     {
         'id':   'm2_bos',
-        'name': 'II · The Dark Forest',
+        'name': '2 · The Dark Forest',
         'area': 'koen', 'area_level': 2,
         'dialog_before': 'koen_mid', 'dialog_after': None,
-        'brief': ("Mist hangs heavy between the trees. Partisans are hiding —\n"
-                  "you won't see them until they're already beside you."),
+        'brief': ("Rebel soldiers have retreated into the forest.\n"
+                  "Push them back before they dig in deeper."),
         'biome':         'FOREST',
-        'gamemode':      'FOG',
-        'difficulty':    'NORMAAL',
-        'aiPersonality': 'OPPORTUNIST',
+        'gamemode':      'STANDAARD',
+        'difficulty':    'MAKKELIJK',
+        'aiPersonality': 'BALANCED',
         'forces': {
-            'player': {'infantry': 18, 'heavy_infantry': 4, 'cavalry': 4, 'artillery': 2},
-            'enemy':  {'infantry': 20, 'heavy_infantry': 3, 'cavalry': 2, 'artillery': 1},
+            'player': {'infantry': 20, 'heavy_infantry': 4, 'cavalry': 5, 'artillery': 1},
+            'enemy':  {'infantry': 18, 'heavy_infantry': 2, 'cavalry': 3, 'artillery': 1},
         },
         'node': (330, 470),
         'requires': ['m1_ochtendgloren'],
     },
     {
         'id':   'm3_brug',
-        'name': 'III · The Bridge at the Meuse',
+        'name': '3 · The Bridge at the Meuse',
         'area': 'koen', 'area_level': 3,
         'dialog_before': None, 'dialog_after': 'koen_outro',
-        'brief': ("The enemy occupies a vital bridge. Take the crossing —\n"
-                  "every passage you don't take will be used against you."),
+        'brief': ("Koen himself guards the bridge. Cut off the head —\n"
+                  "when their commander falls, the rest will scatter."),
         'biome':         'RIVER_VALLEY',
-        'gamemode':      'ASSAULT',
-        'difficulty':    'NORMAAL',
+        'gamemode':      'COMMANDER',
+        'difficulty':    'MAKKELIJK',
         'aiPersonality': 'DEFENSIVE',
         'forces': {
             'player': {'infantry': 24, 'heavy_infantry': 6, 'cavalry': 5, 'artillery': 2},
@@ -88,32 +92,32 @@ MISSIONS = [
     },
     {
         'id':   'm4_hooglanden',
-        'name': 'IV · The Highlands',
+        'name': '1 · The Highlands',
         'area': 'tim', 'area_level': 1,
         'dialog_before': 'tim_intro', 'dialog_after': None,
         'brief': ("The loyalists have dug in along the ridge.\n"
                   "Height is their advantage — use your cannons."),
         'biome':         'HIGHLANDS',
         'gamemode':      'STANDAARD',
-        'difficulty':    'MOEILIJK',
+        'difficulty':    'NORMAAL',
         'aiPersonality': 'DEFENSIVE',
         'forces': {
             'player': {'infantry': 22, 'heavy_infantry': 5, 'cavalry': 4, 'artillery': 3},
-            'enemy':  {'infantry': 24, 'heavy_infantry': 5, 'cavalry': 3, 'artillery': 3},
+            'enemy':  {'infantry': 20, 'heavy_infantry': 4, 'cavalry': 3, 'artillery': 2},
         },
         'node': (670, 310),
         'requires': ['m3_brug'],
     },
     {
         'id':   'm5_belegering',
-        'name': 'V · The Siege',
+        'name': '2 · The Siege',
         'area': 'tim', 'area_level': 2,
         'dialog_before': 'tim_mid', 'dialog_after': None,
         'brief': ("The capital is in rebel hands. All key outposts\n"
                   "must fall before the throne room is within reach."),
         'biome':         'MIXED',
         'gamemode':      'ASSAULT',
-        'difficulty':    'MOEILIJK',
+        'difficulty':    'NORMAAL',
         'aiPersonality': 'DEFENSIVE',
         'forces': {
             'player': {'infantry': 28, 'heavy_infantry': 7, 'cavalry': 6, 'artillery': 3},
@@ -123,18 +127,18 @@ MISSIONS = [
     },
     {
         'id':   'm6_laatste_slag',
-        'name': 'VI · The Last Battle',
+        'name': '3 · The Last Battle',
         'area': 'tim', 'area_level': 3,
         'dialog_before': None, 'dialog_after': 'tim_outro',
         'brief': ("The rebel leader personally commands his elite guard.\n"
-                  "Defeat him — but this is only the beginning."),
+                  "Bring him down — but this is only the beginning."),
         'biome':         'TWIN_RIVERS',
-        'gamemode':      'STANDAARD',
-        'difficulty':    'VETERAAN',
+        'gamemode':      'COMMANDER',
+        'difficulty':    'MOEILIJK',
         'aiPersonality': 'AGGRESSIVE',
         'forces': {
-            'player': {'infantry': 30, 'heavy_infantry': 8, 'cavalry': 7, 'artillery': 4},
-            'enemy':  {'infantry': 30, 'heavy_infantry': 8, 'cavalry': 7, 'artillery': 4},
+            'player': {'infantry': 28, 'heavy_infantry': 7, 'cavalry': 6, 'artillery': 4},
+            'enemy':  {'infantry': 28, 'heavy_infantry': 7, 'cavalry': 7, 'artillery': 3},
         },
         'node': (870, 180),
         'requires': ['m5_belegering'],
@@ -142,43 +146,43 @@ MISSIONS = [
     # ── Act II — post-war: new enemies from the north ────────────────────────
     {
         'id':   'm7_misty_plain',
-        'name': 'VII · The Misty Plain',
+        'name': '1 · The Misty Plain',
         'area': 'mika', 'area_level': 1,
         'dialog_before': 'mika_intro', 'dialog_after': None,
         'brief': ("Reports from the north: a new army marches south.\n"
                   "Intercept them on the open plain before they reach the forests."),
         'biome':         'DRY_PLAINS',
         'gamemode':      'STANDAARD',
-        'difficulty':    'VETERAAN',
+        'difficulty':    'MOEILIJK',
         'aiPersonality': 'BALANCED',
         'forces': {
             'player': {'infantry': 26, 'heavy_infantry': 6, 'cavalry': 8, 'artillery': 3},
-            'enemy':  {'infantry': 32, 'heavy_infantry': 8, 'cavalry': 6, 'artillery': 4},
+            'enemy':  {'infantry': 28, 'heavy_infantry': 7, 'cavalry': 6, 'artillery': 3},
         },
         'node': (970, 120),
         'requires': ['m6_laatste_slag'],
     },
     {
         'id':   'm8_moeras',
-        'name': 'VIII · The Swamp',
+        'name': '2 · The Swamp',
         'area': 'mika', 'area_level': 2,
         'dialog_before': None, 'dialog_after': None,
         'brief': ("The enemy has retreated into the wetlands.\n"
                   "Move slowly, stay on dry ground, and encircle them."),
         'biome':         'WETLANDS',
         'gamemode':      'STANDAARD',
-        'difficulty':    'VETERAAN',
+        'difficulty':    'MOEILIJK',
         'aiPersonality': 'DEFENSIVE',
         'forces': {
-            'player': {'infantry': 24, 'heavy_infantry': 8, 'cavalry': 4, 'artillery': 3},
-            'enemy':  {'infantry': 28, 'heavy_infantry': 6, 'cavalry': 3, 'artillery': 4},
+            'player': {'infantry': 24, 'heavy_infantry': 7, 'cavalry': 4, 'artillery': 3},
+            'enemy':  {'infantry': 26, 'heavy_infantry': 6, 'cavalry': 3, 'artillery': 3},
         },
         'node': (1080, 230),
         'requires': ['m7_misty_plain'],
     },
     {
         'id':   'm9_tweeling_rivieren',
-        'name': 'IX · Twin Rivers',
+        'name': '3 · Twin Rivers',
         'area': 'mika', 'area_level': 3,
         'dialog_before': 'mika_mid', 'dialog_after': None,
         'brief': ("Two rivers split the battlefield into three zones.\n"
@@ -196,13 +200,13 @@ MISSIONS = [
     },
     {
         'id':   'm10_doorgang',
-        'name': 'X · The Pass',
+        'name': '4 · The Pass',
         'area': 'mika', 'area_level': 4,
         'dialog_before': None, 'dialog_after': 'mika_outro',
-        'brief': ("A narrow pass between the lakes — the only route north.\n"
-                  "The enemy has fortified it; break through the line."),
+        'brief': ("Mika commands the pass in person. No way around —\n"
+                  "strike at the head and the flanks will collapse."),
         'biome':         'LAKELANDS',
-        'gamemode':      'ASSAULT',
+        'gamemode':      'COMMANDER',
         'difficulty':    'VETERAAN',
         'aiPersonality': 'DEFENSIVE',
         'forces': {
@@ -213,7 +217,7 @@ MISSIONS = [
     },
     {
         'id':   'm11_dageraad',
-        'name': 'XI · Skirmish at Dawn',
+        'name': '1 · Skirmish at Dawn',
         'area': 'luuk', 'area_level': 1,
         'dialog_before': 'luuk_intro', 'dialog_after': None,
         'brief': ("Before sunrise the enemy strikes — wave after wave.\n"
@@ -230,14 +234,14 @@ MISSIONS = [
     },
     {
         'id':   'm12_bergpas',
-        'name': 'XII · Mountain Pass Under Fire',
+        'name': '2 · Mountain Pass Under Fire',
         'area': 'luuk', 'area_level': 2,
         'dialog_before': None, 'dialog_after': None,
         'brief': ("The loyalists have placed cannons on the heights.\n"
                   "Climb, avoid the gaps, and clear the batteries."),
         'biome':         'HIGHLANDS',
         'gamemode':      'ASSAULT',
-        'difficulty':    'NAPOLEON',
+        'difficulty':    'VETERAAN',
         'aiPersonality': 'DEFENSIVE',
         'forces': {
             'player': {'infantry': 26, 'heavy_infantry': 7, 'cavalry': 4, 'artillery': 5},
@@ -247,7 +251,7 @@ MISSIONS = [
     },
     {
         'id':   'm13_spookbos',
-        'name': 'XIII · Forest of Ghosts',
+        'name': '3 · Forest of Ghosts',
         'area': 'luuk', 'area_level': 3,
         'dialog_before': 'luuk_mid', 'dialog_after': None,
         'brief': ("Ghostly mist conceals everything within ten metres ahead.\n"
@@ -265,7 +269,7 @@ MISSIONS = [
     },
     {
         'id':   'm14_verraad',
-        'name': 'XIV · The Betrayal',
+        'name': '4 · The Betrayal',
         'area': 'luuk', 'area_level': 4,
         'dialog_before': None, 'dialog_after': 'luuk_outro',
         'brief': ("One of your own generals has switched sides. His elite cohort\n"
@@ -283,7 +287,7 @@ MISSIONS = [
     },
     {
         'id':   'm15_lange_mars',
-        'name': 'XV · The Long March',
+        'name': '1 · The Long March',
         'area': 'matthijs', 'area_level': 1,
         'dialog_before': 'matthijs_intro', 'dialog_after': None,
         'brief': ("Exhausted from weeks of marching, you now face\n"
@@ -301,7 +305,7 @@ MISSIONS = [
     },
     {
         'id':   'm16_klooster',
-        'name': 'XVI · Defence of the Monastery',
+        'name': '2 · Defence of the Monastery',
         'area': 'matthijs', 'area_level': 2,
         'dialog_before': None, 'dialog_after': None,
         'brief': ("Civilians and monks shelter within the walls.\n"
@@ -318,7 +322,7 @@ MISSIONS = [
     },
     {
         'id':   'm17_citadel',
-        'name': 'XVII · Assault on the Citadel',
+        'name': '3 · Assault on the Citadel',
         'area': 'matthijs', 'area_level': 3,
         'dialog_before': 'matthijs_mid', 'dialog_after': None,
         'brief': ("The enemy citadel is their last stronghold.\n"
@@ -335,13 +339,13 @@ MISSIONS = [
     },
     {
         'id':   'm18_eindstrijd',
-        'name': 'XVIII · The Final Battle',
+        'name': '4 · The Final Battle',
         'area': 'matthijs', 'area_level': 4,
         'dialog_before': None, 'dialog_after': ['matthijs_outro', 'campaign_outro'],
         'brief': ("The enemy emperor marches out personally.\n"
-                  "Win — or so you thought. A new front opens…"),
+                  "Kill the emperor — or so you thought. A new front opens…"),
         'biome':         'TWIN_RIVERS',
-        'gamemode':      'STANDAARD',
+        'gamemode':      'COMMANDER',
         'difficulty':    'NAPOLEON',
         'aiPersonality': 'AGGRESSIVE',
         'forces': {
@@ -567,15 +571,27 @@ def _addLateMissions(out):
          {'infantry': 40, 'heavy_infantry': 14, 'cavalry': 12, 'artillery': 6},
          'matthijs', 10),
     ]
+    def _diffForArea(area, area_level):
+        if area == 'koen':
+            return 'NORMAAL'     if area_level >= 7 else 'MAKKELIJK'
+        elif area == 'tim':
+            return 'MOEILIJK'    if area_level >= 7 else 'NORMAAL'
+        elif area == 'mika':
+            return 'VETERAAN'    if area_level >= 8 else 'MOEILIJK'
+        elif area == 'luuk':
+            return 'NAPOLEON'    if area_level >= 8 else 'VETERAAN'
+        else:  # matthijs
+            return 'NAPOLEON'
+
     for row in L:
-        suffix, roman, name, brief, biome, gm, pers, pf, ef, area, al = row
+        suffix, _, name, brief, biome, gm, pers, pf, ef, area, al = row
         m = {
             'id':            suffix,
-            'name':          f'{roman} · {name}',
+            'name':          f'{al} · {name}',
             'brief':         brief,
             'biome':         biome,
             'gamemode':      gm,
-            'difficulty':    'NAPOLEON',
+            'difficulty':    _diffForArea(area, al),
             'aiPersonality': pers,
             'forces':        {'player': pf} if ef is None else {'player': pf, 'enemy': ef},
             'node':          (0, 0),
@@ -665,25 +681,16 @@ for _m in MISSIONS:
 # ── Per-world node layout ────────────────────────────────────────────────────
 
 def _layoutWorldNodes(missions):
-    """Snake-path layout for up to 10 nodes in a world map."""
+    """Single horizontal route: nodes evenly spaced left-to-right."""
     n = len(missions)
     if n == 0:
         return
-    avail_l = 55
-    avail_r = SCREEN_WIDTH - 370
-    avail_t = 165
-    avail_b = SCREEN_HEIGHT - 85
-    cols    = min(n, 5)
-    rows    = (n + cols - 1) // cols
-    xs      = (avail_r - avail_l) / cols
-    ys      = (avail_b - avail_t) / max(rows, 1)
+    avail_l = 120
+    avail_r = SCREEN_WIDTH - 340
+    cy      = int(SCREEN_HEIGHT * 0.72)
     for i, m in enumerate(missions):
-        row = i // cols
-        col = i % cols
-        if row % 2 == 1:
-            col = cols - 1 - col
-        m['node'] = (int(avail_l + (col + 0.5) * xs),
-                     int(avail_t + (row + 0.5) * ys))
+        x = int(avail_l + (avail_r - avail_l) * (i + 0.5) / n)
+        m['node'] = (x, cy)
 
 for _w in WORLDS:
     _layoutWorldNodes(_w['missions'])
@@ -693,7 +700,7 @@ for _w in WORLDS:
 
 def _loadProgress():
     try:
-        with open(PROGRESS_FILE, 'r', encoding='utf-8') as f:
+        with open(_progressFile(), 'r', encoding='utf-8') as f:
             data = json.load(f)
     except (OSError, json.JSONDecodeError):
         return {'completed': []}
@@ -703,7 +710,7 @@ def _loadProgress():
 
 def _saveProgress(data):
     try:
-        with open(PROGRESS_FILE, 'w', encoding='utf-8') as f:
+        with open(_progressFile(), 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2)
     except OSError:
         pass
@@ -892,7 +899,7 @@ class CampaignMenu:
                     (W // 2 - (len(WORLDS) - 1) * 15 + di * 30, H - 108), 8)
 
             # Arrow buttons
-            for rect, lbl in ((left_r, '◄'), (right_r, '►')):
+            for rect, lbl in ((left_r, '<'), (right_r, '>')):
                 hov = rect.collidepoint(mx, my)
                 pygame.draw.rect(self.screen,
                                  (65, 52, 38) if hov else (42, 34, 26),
@@ -906,8 +913,8 @@ class CampaignMenu:
                                        rect.centery - as_.get_height() // 2))
 
             _button(self.screen, back_r,  "Back", mx, my)
-            enter_label = ("View Story  ►" if is_story
-                           else "Enter World  ►" if not locked else "Locked")
+            enter_label = ("View Story  >" if is_story
+                           else "Enter World  >" if not locked else "Locked")
             _button(self.screen, enter_r, enter_label,
                     mx, my, enabled=not locked)
 
@@ -1047,9 +1054,9 @@ class CampaignMenu:
                     ty += 18
 
                 ty = panel_rect.bottom - 96
-                status_txt = {'done': "✓ COMPLETED — play again?",
+                status_txt = {'done': "COMPLETED - play again?",
                               'available': "Available",
-                              'locked': "✗ Locked"}[stat]
+                              'locked': "Locked"}[stat]
                 status_col = {'done': (120, 220, 120),
                               'available': _GOLD_LIGHT,
                               'locked': (200, 120, 120)}[stat]
@@ -1125,8 +1132,25 @@ class CampaignMenu:
         return tuple(int(a[i] + (b[i] - a[i]) * max(0.0, min(1.0, t)))
                      for i in range(3))
 
+    _BG_FILES = {
+        'home':     'palace.png',
+        'koen':     'borderlands.png',
+        'tim':      'river.png',
+        'mika':     'dry_planes.png',
+        'luuk':     'highlands.png',
+        'matthijs': 'matthijs_fort.png',
+    }
+
     def _buildWorldBg(self, wid):
         W, H = SCREEN_WIDTH, SCREEN_HEIGHT
+        fname = self._BG_FILES.get(wid)
+        if fname:
+            path = os.path.join(os.getcwd(), 'game_visuals', 'campain', fname)
+            try:
+                img = pygame.image.load(path).convert()
+                return pygame.transform.scale(img, (W, H))
+            except Exception:
+                pass
         surf = pygame.Surface((W, H))
 
         def grad(y1, y2, c1, c2):
@@ -1298,14 +1322,4 @@ class CampaignMenu:
         return self._portraits[key]
 
     def _drawPath(self, a, b, color, width=3):
-        ax, ay = a; bx, by = b
-        cpx = (ax + bx) / 2
-        cpy = (ay + by) / 2 - 40
-        steps = 24
-        prev  = a
-        for i in range(1, steps + 1):
-            t = i / steps
-            x = (1-t)**2 * ax + 2*(1-t)*t * cpx + t*t * bx
-            y = (1-t)**2 * ay + 2*(1-t)*t * cpy + t*t * by
-            pygame.draw.line(self.screen, color, prev, (int(x), int(y)), width)
-            prev = (int(x), int(y))
+        pygame.draw.line(self.screen, color, a, b, width)

@@ -237,6 +237,15 @@ class Unit:
                     and focus and self.distanceTo(focus) <= self.attackRange):
                 self.targetX = self.x
                 self.targetY = self.y
+            # AI artillery auto-undeploys when no target is in range so it can
+            # advance/reposition instead of sitting parked forever.
+            if (self.deployed and not self.undeploying
+                    and getattr(self, 'controller', 0) < 0
+                    and (not focus or self.distanceTo(focus) > self.attackRange)):
+                self.deployed      = False
+                self.undeploying   = True
+                self.undeployTimer = 90
+                self.attackTarget  = None
             if self.undeploying:
                 self.undeployTimer -= 1
                 if self.undeployTimer <= 0:
@@ -247,8 +256,8 @@ class Unit:
                 if moving:
                     self.deployTimer = 0
                 else:
-                    self.deployTimer = min(90, self.deployTimer + 1)
-                    self.deployed    = self.deployTimer >= 90
+                    self.deployTimer = min(120, self.deployTimer + 1)
+                    self.deployed    = self.deployTimer >= 120
 
         if focus:
             dist = self.distanceTo(focus)

@@ -44,12 +44,12 @@ class FormationMixin:
         selection is actually free to move when it receives a new order."""
         for u in units:
             if u.unitType == 'infantry' and u.inSquare:
-                u.reformTimer = 75
+                u.reformTimer = 105
             u.inSquare = False
             if u.unitType == 'artillery' and u.deployed:
                 u.deployed      = False
                 u.undeploying   = True
-                u.undeployTimer = 75
+                u.undeployTimer = 90
 
     def _applyFormationPath(self, path):
         if not self.selectedUnits or len(path) < 2:
@@ -122,12 +122,12 @@ class FormationMixin:
         if alreadyIn:
             for u in infantry:
                 u.inSquare    = False
-                u.reformTimer = 75
+                u.reformTimer = 105
             return
 
         if len(infantry) == 1:
             infantry[0].inSquare     = True
-            infantry[0].reformTimer  = 75
+            infantry[0].reformTimer  = 105
             infantry[0].attackTarget = None
             return
 
@@ -151,5 +151,5 @@ class FormationMixin:
             u.targetY      = cy + oy
             u.angle        = face
             u.inSquare     = True
-            u.reformTimer  = 75
+            u.reformTimer  = 105
             u.attackTarget = None

@@ -674,6 +674,9 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
                 spread = (hash((utype, i)) % 300) - 150
                 u.targetX = hqx + 30
                 u.targetY = hqy + spread
+                if self.netRole == 'host':
+                    self._netIdSeq += 1
+                    u.netId = self._netIdSeq
                 new_units.append(u)
         self.units.extend(new_units)
 
@@ -1688,7 +1691,7 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
                     f"Score: {_score:.2f}  (kill eff: {_eff:.2f}  survival: {_surv:.2f})",
                     True, _MUTED), (col_l, ty))
                 self.screen.blit(req_f.render(
-                    f"3★ needs {self._STAR3_SCORE}   2★ needs {self._STAR2_SCORE}",
+                    f"3* needs {self._STAR3_SCORE}   2* needs {self._STAR2_SCORE}",
                     True, (150, 140, 100)), (col_l, ty + 14))
                 ty += 30
 
@@ -1750,7 +1753,7 @@ class Game(EventsMixin, FormationMixin, RendererMixin):
                 _pg.draw.rect(self.screen, btn_col,  btn_rect, border_radius=6)
                 _pg.draw.rect(self.screen, _GOLD_LIGHT if hover else _GOLD,
                               btn_rect, 2, border_radius=6)
-                btn_txt = _font(20, bold=True).render("Continue  →", True, _GOLD_LIGHT)
+                btn_txt = _font(20, bold=True).render("Continue  >", True, _GOLD_LIGHT)
                 self.screen.blit(btn_txt, (
                     cx - btn_txt.get_width() // 2,
                     btn_rect.centery - btn_txt.get_height() // 2))

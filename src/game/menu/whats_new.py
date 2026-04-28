@@ -20,7 +20,19 @@ from src.game.menu._common import (
 # ── Changelog ─────────────────────────────────────────────────────────────
 # Add a new key here for every release that has player-facing changes.
 CHANGELOG = {
-    "v1.27": [
+    "v1.31": [
+        "Custom artwork: menu background, all 5 campaign worlds, and all 9 biome map previews",
+        "Multiplayer: always 8 slots (4v4), clear Team 1 / Team 2 layout with divider",
+        "Waves mode: playable with up to 8 players — all on the same team against the enemy",
+        "Waves lobby: team headers replaced by a single ALLIES banner, no red slots",
+        "Campaign: world backgrounds now painted landscapes instead of generated gradients",
+        "Campaign: mission numbers shown per-world (1, 2, 3…) instead of globally",
+        "Campaign: boss missions use the Hunt the Commander game mode",
+        "Campaign: world map is a straight left-to-right route through the terrain",
+        "Biome thumbnails in the lobby now show hand-drawn map previews",
+        "Fixed: broken Unicode symbols throughout menus replaced with readable alternatives",
+    ],
+    "v1.29": [
         "Waves: artillery deploys and fires — no more marching straight past your line",
         "Waves: enemy AI pushes aggressively instead of clustering at bridges",
         "Waves: faster escalation — cavalry appears from wave 2, heavy infantry from wave 3",

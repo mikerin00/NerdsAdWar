@@ -20,6 +20,10 @@ from src import audio
 
 TUTORIAL_PROGRESS = os.path.join(os.getcwd(), 'tutorial_progress.json')
 
+def _progressFile() -> str:
+    from src import accounts
+    return accounts.tutorialProgressFile()
+
 TUTORIALS = [
     {
         'id':   'tut1_basis',
@@ -28,10 +32,10 @@ TUTORIALS = [
             "Welcome to Nerds at War. This is your first battle.\n"
             "\n"
             "CONTROLS:\n"
-            "  Left click drag  →  select a group of units\n"
-            "  Left click       →  select a single unit\n"
-            "  Right click      →  move or attack\n"
-            "  SPACE            →  start battle immediately\n"
+            "  Left click drag  -  select a group of units\n"
+            "  Left click       -  select a single unit\n"
+            "  Right click      -  move or attack\n"
+            "  SPACE            -  start battle immediately\n"
             "\n"
             "FLANKING & MORALE:\n"
             "  Attacking from behind: +80% damage.\n"
@@ -181,7 +185,7 @@ TUTORIALS = [
 
 def _loadProgress():
     try:
-        with open(TUTORIAL_PROGRESS, 'r', encoding='utf-8') as f:
+        with open(_progressFile(), 'r', encoding='utf-8') as f:
             data = json.load(f)
         if isinstance(data, dict) and 'completed' in data:
             return data
@@ -191,7 +195,7 @@ def _loadProgress():
 
 def _saveProgress(data):
     try:
-        with open(TUTORIAL_PROGRESS, 'w', encoding='utf-8') as f:
+        with open(_progressFile(), 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2)
     except OSError:
         pass
@@ -298,7 +302,7 @@ class TutorialMenu:
                 if done:
                     pygame.draw.circle(self.screen, (120, 220, 120),
                                        (r.x + 30, r.centery), 12)
-                    ch = _font(16, bold=True).render("✓", True, (20, 40, 20))
+                    ch = _font(16, bold=True).render("V", True, (20, 40, 20))
                     self.screen.blit(ch, (r.x + 30 - ch.get_width() // 2,
                                           r.centery - ch.get_height() // 2))
                 else:

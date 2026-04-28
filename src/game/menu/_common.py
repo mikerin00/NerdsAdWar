@@ -9,6 +9,7 @@
 #   - Warm sepia ink-dots drift upward as "atmosphere"
 
 import math
+import os
 import random
 import pygame
 
@@ -315,27 +316,48 @@ def _getCompassRose(r=52):
     return surf
 
 
+# ── Menu background image ──────────────────────────────────────────────────
+
+_BG_IMAGE_CACHE = None
+
+def _getBgImage():
+    global _BG_IMAGE_CACHE
+    key = (SCREEN_WIDTH, SCREEN_HEIGHT)
+    if _BG_IMAGE_CACHE is not None and _BG_IMAGE_CACHE[0] == key:
+        return _BG_IMAGE_CACHE[1]
+    path = os.path.join(os.getcwd(), 'game_visuals', 'menu_background.png')
+    try:
+        img = pygame.image.load(path).convert()
+        img = pygame.transform.scale(img, (SCREEN_WIDTH, SCREEN_HEIGHT))
+    except Exception:
+        img = None
+    _BG_IMAGE_CACHE = (key, img)
+    return img
+
+
 # ── Background composition ─────────────────────────────────────────────────
 
 def _drawBackground(surf, tick):
-    """Ivory paper + subtle warm vignette + topographic contour lines +
-    a compass-rose ornament tucked into the bottom-right corner."""
-    surf.fill(_DARK_BG)
+    """Menu background: custom image if available, otherwise fallback to
+    the old ivory-paper + world-map style."""
+    bg = _getBgImage()
+    if bg is not None:
+        surf.blit(bg, (0, 0))
+        return
 
-    # Warm ivory vignette (lighter centre, slightly tanner at edges)
+    # Fallback: ivory paper + vignette + world map + contours + compass rose
+    surf.fill(_DARK_BG)
     cx, cy = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
     for r in range(max(cx, cy), 0, -90):
         alpha = max(0, int(14 * (1 - r / max(cx, cy))))
         s = pygame.Surface((r * 2, r * 2), pygame.SRCALPHA)
         pygame.draw.circle(s, (185, 140,  85, alpha), (r, r), r)
         surf.blit(s, (cx - r, cy - r))
-
     surf.blit(_getWorldMapLayer(), (0, 0))
     surf.blit(_getContourLayer(), (0, 0))
-
     rose = _getCompassRose(52)
     surf.blit(rose, (SCREEN_WIDTH - rose.get_width() - 24,
-                    SCREEN_HEIGHT - rose.get_height() - 24))
+                     SCREEN_HEIGHT - rose.get_height() - 24))
 
 
 # ── Fonts (lazy init) ──────────────────────────────────────────────────────

@@ -140,11 +140,11 @@ class SettingsMenu:
 
             # Keybinds button
             keys_hover = _drawButton(self.screen, keys_rect,
-                                     "Keybindings →", mx, my)
+                                     "Keybindings >", mx, my)
 
             # Bug report button
             report_hover = _drawButton(self.screen, report_rect,
-                                       "Report a Bug →", mx, my)
+                                       "Report a Bug >", mx, my)
 
             back_hover = _drawButton(self.screen, back_rect, "Back", mx, my)
 
@@ -268,7 +268,7 @@ class SettingsMenu:
             back_hover  = _drawButton(self.screen, back_rect,  "Back", mx, my)
 
             hint = _font(14).render(
-                "Click an action → press the desired key  |  ESC = cancel",
+                "Click an action - press the desired key  |  ESC = cancel",
                 True, _DIM)
             self.screen.blit(hint, (cx - hint.get_width() // 2, SCREEN_HEIGHT - 28))
 

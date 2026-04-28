@@ -218,9 +218,10 @@ class EventsMixin:
         ids = self._selectedIds()
         tid = getattr(target, 'netId', None)
         if not ids or tid is None:
-            # Single-player fallback: direct mutation
-            if self.netRole is None:
+            # Singleplayer and host: mutate directly (client can't — no authority)
+            if self.netRole != 'client':
                 for u in self.selectedUnits:
+                    u.patrolPath   = []
                     u.attackTarget = target
             return
         self.issueCommand('atk', {'ids': ids, 'tid': tid})

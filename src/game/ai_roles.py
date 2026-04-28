@@ -41,7 +41,7 @@ class BattleRolesMixin:
                 if u.deployed:
                     u.deployed      = False
                     u.undeploying   = True
-                    u.undeployTimer = 75
+                    u.undeployTimer = 90
                 u.attackTarget = None
                 rx = (enemyHq.x - 80) if enemyHq else u.x + 120
                 _moveToSafe(u, terrain, rx, u.y)

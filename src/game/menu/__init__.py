@@ -12,9 +12,10 @@ from src.game.menu.story_dialogs import StoryDialogScreen
 from src.game.menu.tutorial import TutorialMenu, markTutorialComplete
 from src.game.menu.settings import SettingsMenu
 from src.game.menu.whats_new import WhatsNewScreen, shouldShowWhatsNew, markWhatsNewSeen
+from src.game.menu.account_menu import AccountLoginScreen, AccountProfileScreen
 
 __all__ = ['SplashScreen', 'MainMenu', 'LobbyScreen', 'PauseMenu',
            'MultiplayerMenu', 'SandboxMenu', 'CampaignMenu',
            'markMissionComplete', 'TutorialMenu', 'markTutorialComplete',
            'SettingsMenu', 'WhatsNewScreen', 'shouldShowWhatsNew', 'markWhatsNewSeen',
-           'StoryDialogScreen']
+           'StoryDialogScreen', 'AccountLoginScreen', 'AccountProfileScreen']

@@ -7,8 +7,12 @@ import random
 import pygame
 
 from src.constants import SCREEN_WIDTH, SCREEN_HEIGHT, PLAYER_COLORS
+import time
+
+from src import audio
 from src.game.menu._common import (
-    _PARCHMENT, _GOLD, _GOLD_LIGHT, _DIM, _WHITE,
+    _PARCHMENT, _GOLD, _GOLD_LIGHT, _DIM, _WHITE, _MUTED,
+    _BTN_BG, _BTN_BG_HOVER,
     _makeParticles, _updateParticles, _drawParticles,
     _drawBackground, _font, _renderShadow, _drawDivider,
     _drawButton,
@@ -46,7 +50,8 @@ from src.constants import MODE_SLOT_COUNT, slotCountForMode, teamOfSlot  # noqa:
 
 # ── Name persistence ────────────────────────────────────────────────────────
 
-_NAME_FILE = os.path.join(os.getcwd(), 'mp_name.txt')
+_NAME_FILE     = os.path.join(os.getcwd(), 'mp_name.txt')
+_LOBBY_SETTINGS_FILE = os.path.join(os.getcwd(), 'mp_lobby.txt')
 
 def _loadName(default: str = '') -> str:
     try:
@@ -60,6 +65,30 @@ def _saveName(name: str) -> None:
         with open(_NAME_FILE, 'w', encoding='utf-8') as f:
             f.write(name.strip()[:16])
     except OSError:
+        pass
+
+def _loadLobbySettings() -> dict:
+    """Return {'mode': str, 'biomeIdx': int, 'gamemodeIdx': int} from disk."""
+    try:
+        import json
+        with open(_LOBBY_SETTINGS_FILE, 'r', encoding='utf-8') as f:
+            d = json.load(f)
+        valid_modes = {m[0] for m in MATCH_MODES}
+        return {
+            'mode':        d.get('mode', '1v1') if d.get('mode') in valid_modes else '1v1',
+            'biomeIdx':    int(d.get('biomeIdx', 0)),
+            'gamemodeIdx': int(d.get('gamemodeIdx', 0)),
+        }
+    except Exception:
+        return {'mode': '1v1', 'biomeIdx': 0, 'gamemodeIdx': 0}
+
+def _saveLobbySettings(mode: str, biomeIdx: int, gamemodeIdx: int) -> None:
+    try:
+        import json
+        with open(_LOBBY_SETTINGS_FILE, 'w', encoding='utf-8') as f:
+            json.dump({'mode': mode, 'biomeIdx': biomeIdx,
+                       'gamemodeIdx': gamemodeIdx}, f)
+    except Exception:
         pass
 
 
@@ -223,110 +252,272 @@ def _drawPlayerSlot(surf, rect, name, slot, ready, mine, team, colorIdx,
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# MultiplayerMenu — name, then Host/Join.
+# MultiplayerMenu — lobby browser with auto-scan + Host Lobby button.
 # ════════════════════════════════════════════════════════════════════════════
 
+_SCAN_INTERVAL = 6.0   # seconds between automatic re-scans
+
+_ROW_H   = 66
+_ROW_GAP = 8
+_ROW_X   = 60
+_LIST_TOP = 205
+
+
 class MultiplayerMenu:
-    """Returns (outcome, config, sessions) where `sessions` is:
-        - None for single-player
-        - a list of _Session (host side, may contain 1 or 3 sessions)
-        - a single _Session in a 1-element list (client side)
-    Outcome values: 'start' | 'back' | 'quit'.
-    """
+    """Returns (outcome, config, sessions).
+    Shows all open LAN + internet lobbies immediately, with a 'Host Lobby'
+    button at the bottom to create a new game."""
 
     def __init__(self, screen, clock):
-        self.screen = screen
-        self.clock  = clock
-        self.tick   = 0
+        self.screen  = screen
+        self.clock   = clock
+        self.tick    = 0
         self.particles, self.prng = _makeParticles(50)
-        self.name = _loadName(default='')
+
+        # Always use the logged-in account username
+        try:
+            from src import accounts as _acc
+            _user = _acc.getActiveUser()
+            self._accountName = _user['username'] if _user else _loadName(default='Speler')
+        except Exception:
+            self._accountName = _loadName(default='Speler')
+
+        self._lobbies:  list  = []
+        self._scanning: bool  = False
+        self._nextScan: float = 0.0
+        self._startScan()
+
+    def _startScan(self):
+        import threading
+        self._scanning = True
+        self._nextScan = time.monotonic() + _SCAN_INTERVAL
+
+        def _worker():
+            lan      = discoveryScan(timeout=2.0)
+            internet = fetchLobbies(timeout=3.0)
+            self._lobbies  = lan + internet
+            self._scanning = False
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _askLobbyName(self) -> str | None:
+        """Overlay modal: ask the host for a lobby name.
+        Returns the name string, or None if cancelled."""
+        cx  = SCREEN_WIDTH  // 2
+        cy  = SCREEN_HEIGHT // 2
+        box = pygame.Rect(cx - 260, cy - 100, 520, 210)
+        inp = pygame.Rect(cx - 200, cy - 18,  400, 44)
+        ok_r  = pygame.Rect(cx - 210, cy + 58, 190, 44)
+        cncl  = pygame.Rect(cx +  20, cy + 58, 190, 44)
+
+        default = f"{self._accountName}'s Game"
+        text    = default
+        while True:
+            mx, my = pygame.mouse.get_pos()
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    return None
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        return None
+                    if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                        return text.strip() or default
+                    if event.key == pygame.K_BACKSPACE:
+                        text = text[:-1]
+                    elif event.unicode and event.unicode.isprintable() \
+                            and len(text) < 28:
+                        text += event.unicode
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    if ok_r.collidepoint(mx, my):
+                        audio.play_sfx('click')
+                        return text.strip() or default
+                    if cncl.collidepoint(mx, my):
+                        audio.play_sfx('click')
+                        return None
+
+            # Dim the browser behind the modal
+            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            overlay.fill((20, 15, 10, 160))
+            self.screen.blit(overlay, (0, 0))
+
+            pygame.draw.rect(self.screen, (244, 236, 219), box, border_radius=8)
+            pygame.draw.rect(self.screen, _GOLD, box, 2, border_radius=8)
+
+            lf = _font(22, bold=True)
+            lt = lf.render("Geef je lobby een naam", True, _PARCHMENT)
+            self.screen.blit(lt, (cx - lt.get_width() // 2, box.y + 18))
+
+            # Input field
+            pygame.draw.rect(self.screen, _BTN_BG_HOVER, inp, border_radius=4)
+            pygame.draw.rect(self.screen, _GOLD_LIGHT, inp, 2, border_radius=4)
+            shown = text or "Lobby naam…"
+            ns = _font(22).render(shown, True, _WHITE if text else _DIM)
+            self.screen.blit(ns, (inp.x + 10, inp.centery - ns.get_height() // 2))
+            # Cursor
+            if (pygame.time.get_ticks() // 500) % 2 == 0:
+                cb = inp.x + 10 + ns.get_width() + 2
+                pygame.draw.line(self.screen, _PARCHMENT,
+                                 (cb, inp.y + 8), (cb, inp.bottom - 8), 1)
+
+            _drawButton(self.screen, ok_r,   "Start >", mx, my, font_size=20)
+            _drawButton(self.screen, cncl, "Annuleren", mx, my, font_size=18)
+
+            pygame.display.flip()
+            self.clock.tick(60)
 
     def run(self):
-        while True:
-            choice = self._pickRoleAndName()
-            if choice in ('back', 'quit'):
-                return choice, None, None
-            if not self.name.strip():
-                continue
-            _saveName(self.name)
+        cx = SCREEN_WIDTH  // 2
+        ROW_W = SCREEN_WIDTH - _ROW_X * 2
 
-            if choice == 'host':
-                result = _HostLobby(self.screen, self.clock, self.name).run()
-            else:
-                result = _JoinLobby(self.screen, self.clock, self.name).run()
-            if result[0] in ('start', 'quit'):
-                return result
-
-    def _pickRoleAndName(self):
-        cx = SCREEN_WIDTH // 2
-        name_rect = pygame.Rect(cx - 200, 235, 400, 46)
-        host_rect = pygame.Rect(cx - 170, 330, 340, 56)
-        join_rect = pygame.Rect(cx - 170, 410, 340, 56)
-        back_rect = pygame.Rect(cx - 80,  505, 160, 40)
+        host_rect    = pygame.Rect(cx - 190, SCREEN_HEIGHT - 76, 240, 48)
+        back_rect    = pygame.Rect(cx +  70, SCREEN_HEIGHT - 76, 120, 48)
+        refresh_rect = pygame.Rect(SCREEN_WIDTH - _ROW_X - 130, _LIST_TOP - 32, 130, 28)
 
         while True:
             mx, my = pygame.mouse.get_pos()
             click = False
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    return 'quit'
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:
-                        return 'back'
-                    if event.key == pygame.K_BACKSPACE:
-                        self.name = self.name[:-1]
-                    elif event.unicode and event.unicode.isprintable() \
-                            and len(self.name) < 16:
-                        if event.unicode.isalnum() or event.unicode in " _-.":
-                            self.name += event.unicode
+                    return 'quit', None, None
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    return 'back', None, None
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     click = True
 
-            name_ok = bool(self.name.strip())
-            self.tick += 1
-            _updateParticles(self.particles, self.prng)
-            _drawBackground(self.screen, self.tick)
-            _drawParticles(self.screen, self.particles)
-
-            tf = _font(44, bold=True)
-            _renderShadow(self.screen, "MULTIPLAYER", tf, _GOLD_LIGHT,
-                          cx - tf.size("MULTIPLAYER")[0] // 2, 80, offset=3)
-            _drawDivider(self.screen, 145)
-            _drawCenteredText(self.screen, "Play 1v1, 2v2 or Coop (1-4 vs AI) over LAN",
-                              _font(20), _PARCHMENT, 175)
-
-            _drawCenteredText(self.screen, "Your name", _font(16), _DIM, 215)
-            pygame.draw.rect(self.screen, (240, 228, 204), name_rect, border_radius=4)
-            pygame.draw.rect(self.screen, _GOLD, name_rect, 1, border_radius=4)
-            shown = self.name if self.name else "enter your name…"
-            surf  = _font(26, bold=name_ok).render(
-                shown, True, _WHITE if name_ok else _DIM)
-            self.screen.blit(surf, (name_rect.x + 14,
-                                    name_rect.centery - surf.get_height() // 2))
-            if name_ok and (self.tick // 30) % 2 == 0:
-                cx_blink = name_rect.x + 14 + surf.get_width() + 2
-                pygame.draw.line(self.screen, _PARCHMENT,
-                                 (cx_blink, name_rect.y + 10),
-                                 (cx_blink, name_rect.bottom - 10), 2)
-
-            host_hover = _button(self.screen, host_rect,
-                                 "Host (start a game)", mx, my, enabled=name_ok)
-            join_hover = _button(self.screen, join_rect,
-                                 "Join (connect to a host)", mx, my,
-                                 enabled=name_ok)
-            back_hover = _button(self.screen, back_rect, "Back", mx, my)
-
-            if not name_ok:
-                _drawCenteredText(self.screen, "Please enter a name first",
-                                  _font(14), (200, 120, 120), 480)
+            # Auto-rescan
+            if not self._scanning and time.monotonic() >= self._nextScan:
+                self._startScan()
 
             if click:
-                if host_hover and name_ok: return 'host'
-                if join_hover and name_ok: return 'join'
-                if back_hover: return 'back'
+                if refresh_rect.collidepoint(mx, my):
+                    audio.play_sfx('click')
+                    self._startScan()
 
-            pygame.display.flip()
+                elif back_rect.collidepoint(mx, my):
+                    return 'back', None, None
+
+                elif host_rect.collidepoint(mx, my):
+                    audio.play_sfx('click')
+                    lobby_name = self._askLobbyName()
+                    if lobby_name:
+                        result = _HostLobby(self.screen, self.clock,
+                                            self._accountName,
+                                            lobby_name).run()
+                        if result[0] in ('start', 'quit'):
+                            return result
+                    # cancelled or 'back' — fall through to browser
+
+                else:
+                    # Lobby row clicks
+                    for i, lobby in enumerate(self._lobbies):
+                        ry = _LIST_TOP + i * (_ROW_H + _ROW_GAP)
+                        if ry + _ROW_H > SCREEN_HEIGHT - 90:
+                            break
+                        row_r = pygame.Rect(_ROW_X, ry, ROW_W, _ROW_H)
+                        if row_r.collidepoint(mx, my):
+                            audio.play_sfx('click')
+                            if lobby.get('via_relay'):
+                                ct = (None, None, lobby['id'])
+                            else:
+                                ct = (lobby['ip'],
+                                      lobby.get('port', DEFAULT_PORT), None)
+                            result = _JoinLobby(self.screen, self.clock,
+                                                self._accountName,
+                                                connect_to=ct).run()
+                            if result[0] in ('start', 'quit'):
+                                return result
+                            break
+
+            self.tick += 1
+            _updateParticles(self.particles, self.prng)
+            self._draw(mx, my, host_rect, back_rect, refresh_rect, ROW_W)
             self.clock.tick(60)
+
+    def _draw(self, mx, my, host_rect, back_rect, refresh_rect, ROW_W):
+        surf = self.screen
+        cx   = SCREEN_WIDTH // 2
+
+        _drawBackground(surf, self.tick)
+        _drawParticles(surf, self.particles)
+
+        # Title
+        tf = _font(44, bold=True)
+        _renderShadow(surf, "MULTIPLAYER", tf, _GOLD_LIGHT,
+                      cx - tf.size("MULTIPLAYER")[0] // 2, 50, offset=3)
+        _drawDivider(surf, 108)
+
+        # Logged-in-as label (top right, subtle)
+        lf = _font(15)
+        lt = lf.render(f"Ingelogd als:  {self._accountName}", True, _MUTED)
+        surf.blit(lt, (SCREEN_WIDTH - _ROW_X - lt.get_width(), 116))
+
+        # ── Lobby list header ─────────────────────────────────────────────
+        surf.blit(_font(16, bold=True).render("Open lobbies", True, _PARCHMENT),
+                  (_ROW_X, _LIST_TOP - 30))
+
+        _drawButton(surf, refresh_rect,
+                    "Vernieuwen" if not self._scanning else "Zoeken...",
+                    mx, my, enabled=not self._scanning, font_size=14)
+
+        # ── Lobby rows ────────────────────────────────────────────────────
+        if self._scanning and not self._lobbies:
+            dots = '.' * ((self.tick // 20) % 4)
+            surf.blit(_font(18).render(f"Zoeken naar lobbies{dots}", True, _MUTED),
+                      (_ROW_X, _LIST_TOP + 12))
+        elif not self._lobbies:
+            surf.blit(_font(18).render("Geen open lobbies gevonden.", True, _MUTED),
+                      (_ROW_X, _LIST_TOP + 12))
+            surf.blit(_font(14).render(
+                "Druk op Vernieuwen of maak zelf een lobby aan.", True, _DIM),
+                      (_ROW_X, _LIST_TOP + 40))
+        else:
+            for i, lobby in enumerate(self._lobbies):
+                ry = _LIST_TOP + i * (_ROW_H + _ROW_GAP)
+                if ry + _ROW_H > SCREEN_HEIGHT - 92:
+                    more = len(self._lobbies) - i
+                    surf.blit(_font(14).render(
+                        f"+ {more} meer…", True, _MUTED), (_ROW_X, ry + 4))
+                    break
+                row_r = pygame.Rect(_ROW_X, ry, ROW_W, _ROW_H)
+                hover = row_r.collidepoint(mx, my)
+                pygame.draw.rect(surf,
+                                 _BTN_BG_HOVER if hover else (232, 220, 196),
+                                 row_r, border_radius=6)
+                pygame.draw.rect(surf,
+                                 _GOLD_LIGHT if hover else _GOLD,
+                                 row_r, 2 if hover else 1, border_radius=6)
+
+                # Host name
+                nt = _font(22, bold=hover).render(
+                    lobby.get('name', '?'), True, _WHITE if hover else _PARCHMENT)
+                surf.blit(nt, (row_r.x + 16, ry + 8))
+
+                # LAN / Internet badge
+                via = "Internet" if lobby.get('via_relay') else "LAN"
+                badge_col = (70, 110, 190) if lobby.get('via_relay') else (55, 145, 80)
+                bt = _font(12, bold=True).render(via, True, (255, 255, 255))
+                pad = 6
+                br  = pygame.Rect(row_r.x + 16, ry + 36, bt.get_width() + pad * 2, 20)
+                pygame.draw.rect(surf, badge_col, br, border_radius=3)
+                surf.blit(bt, (br.x + pad, br.y + 3))
+
+                # Player / mode info (internet lobbies have extra metadata)
+                if lobby.get('via_relay'):
+                    info = (f"{lobby.get('mode','')}  ·  "
+                            f"{lobby.get('players',1)}/{lobby.get('slots',2)} spelers")
+                    surf.blit(_font(14).render(info, True, _DIM),
+                              (br.right + 10, ry + 38))
+
+                if hover:
+                    at = _font(18, bold=True).render("> Deelnemen", True, _GOLD_LIGHT)
+                    surf.blit(at, (row_r.right - at.get_width() - 16,
+                                   ry + (_ROW_H - at.get_height()) // 2))
+
+        # Bottom buttons
+        _drawButton(surf, host_rect, "+ Host Lobby", mx, my, font_size=22)
+        _drawButton(surf, back_rect, "< Terug",       mx, my, font_size=18)
+
+        pygame.display.flip()
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -334,42 +525,38 @@ class MultiplayerMenu:
 # ════════════════════════════════════════════════════════════════════════════
 
 class _HostLobby:
-    def __init__(self, screen, clock, myName):
-        self.screen = screen
-        self.clock  = clock
-        self.tick   = 0
+    def __init__(self, screen, clock, myName, lobbyName=None):
+        self.screen    = screen
+        self.clock     = clock
+        self.tick      = 0
         self.particles, self.prng = _makeParticles(50)
-        self.myName = myName
+        self.myName    = myName
+        self.lobbyName = lobbyName or f"{myName}'s Game"
 
-        # Start with 1v1 capacity; resizing up to 2v2 will need to bind a new
-        # server if we go over — simplest: always allocate for 2v2 capacity,
-        # but only require the 1v1 count to start.
         try:
-            # 8 slots total → 7 possible clients (host is slot 0). Full
-            # capacity always open; game-start gates on mode head-count.
-            self.server = HostServer(DEFAULT_PORT, name=myName, maxClients=7)
+            self.server = HostServer(DEFAULT_PORT, name=self.lobbyName, maxClients=7)
             self.server.setAllowedClients(7)
             self.bindError = None
         except OSError as e:
             self.server    = None
             self.bindError = str(e)
 
-        self.localIp = getLocalIp()
-        self.beacon  = HostBeacon(myName, DEFAULT_PORT)
-        self.internet = InternetHost(myName, maxClients=7)
+        self.localIp  = getLocalIp()
+        self.beacon   = HostBeacon(self.lobbyName, DEFAULT_PORT)
+        self.internet = InternetHost(self.lobbyName, maxClients=7)
 
-        # slot → (name, ready, colorIdx); slot 0 = me (host). Color is picked
-        # with the 1v1 ordering here and will be re-defaulted on mode switch.
+        _saved = _loadLobbySettings()
+        # slot → (name, ready, colorIdx); slot 0 = me (host).
         self.slots = {0: {'name': myName, 'ready': False, 'alive': True,
-                          'color': _pickDefaultColor(0, '1v1', set())}}
+                          'color': _pickDefaultColor(0, _saved['mode'], set())}}
         # session cache keyed by slot
         self.sessions_by_slot = {}
 
         self.seed        = random.randint(0, 99999)
-        self.biomeIdx    = 0
-        self.gamemodeIdx = 0
-        self.gamemode    = _MP_GAMEMODES[0][0]
-        self.modeKey   = '1v1'
+        self.biomeIdx    = min(_saved['biomeIdx'], len(_BIOMES) - 1)
+        self.gamemodeIdx = min(_saved['gamemodeIdx'], len(_MP_GAMEMODES) - 1)
+        self.gamemode    = _MP_GAMEMODES[self.gamemodeIdx][0]
+        self.modeKey     = '4v4'
         self.status    = 'waiting'
         self.statusMsg = None
         # Slots that are filled by a bot instead of a human connection.
@@ -425,7 +612,7 @@ class _HostLobby:
             'biome': self.biomeKey,
             'biomeLabel': self.biomeLabel,
             'gamemode': self.gamemode,
-            'mode': self.modeKey,
+            'mode': 'COOP' if self.gamemode == 'LAST_STAND' else self.modeKey,
             'slots': slot_info,
             'customMap':     self.customMap,
             'customMapName': self.customMapName,
@@ -515,18 +702,8 @@ class _HostLobby:
         # Mode toggle buttons sit below the tallest slot column. We anchor
         # them at the 4-row position so they don't jump around when the
         # lobby grows; mode_y is recalculated per frame anyway.
-        mode_y = slots_top + half_n * (row_h + slot_gap_y) + 4
-        mode_btn_w, mode_btn_gap = 100, 10
-        mode1_rect = pygame.Rect(slots_left,                                            mode_y, mode_btn_w, 40)
-        mode2_rect = pygame.Rect(slots_left + 1 * (mode_btn_w + mode_btn_gap),          mode_y, mode_btn_w, 40)
-        modeC_rect = pygame.Rect(slots_left + 2 * (mode_btn_w + mode_btn_gap),          mode_y, mode_btn_w, 40)
-        mode3_rect = pygame.Rect(slots_left + 3 * (mode_btn_w + mode_btn_gap),          mode_y, mode_btn_w, 40)
-        mode4_rect = pygame.Rect(slots_left + 4 * (mode_btn_w + mode_btn_gap),          mode_y, mode_btn_w, 40)
-
-        # Shuffle-teams button — randomizes non-host slot assignments so
-        # players don't have to manually negotiate teams. Host-only.
-        shuffle_rect = pygame.Rect(slots_left + 5 * (mode_btn_w + mode_btn_gap),
-                                   mode_y, 130, 40)
+        mode_y       = slots_top + 4 * (row_h + slot_gap_y) + 4
+        shuffle_rect = pygame.Rect(slots_left, mode_y, 160, 40)
 
         # Biome picker (right side)
         thumb_rect = pygame.Rect(SCREEN_WIDTH - 60 - 340, 180, 340, 200)
@@ -623,55 +800,44 @@ class _HostLobby:
                 # Total connected (incl. extras outside the current mode)
                 total_alive = self._aliveCount()
 
-                # COOP: start as soon as all connected slots (≥1) are ready.
-                # 2v2/3v3: full lobby OR at least 1 active per team (bigger army).
-                # Other modes: require exactly the right head-count.
-                is_coop = (self.modeKey in ('COOP', 'LAST_STAND'))
-                if is_coop:
+                # Can start when at least 1 player per team, all present are ready
+                p_active = sum(1 for s in range(4)
+                               if self.slots.get(s, {}).get('alive', False))
+                e_active = sum(1 for s in range(4, 8)
+                               if self.slots.get(s, {}).get('alive', False))
+                is_waves = (self.gamemode == 'LAST_STAND')
+                if is_waves:
                     can_start = (total_alive >= 1
                                  and ready_count == total_alive
                                  and filled == total_alive)
-                elif self.modeKey in ('2v2', '3v3', '4v4'):
-                    # Full lobby: everyone must be ready
-                    full_lobby = (filled == self.requiredPlayers
-                                  and ready_count == self.requiredPlayers
-                                  and total_alive == self.requiredPlayers)
-                    # Partial: at least 1 active per team, all present are ready
-                    half = self.requiredPlayers // 2
-                    p_active = sum(1 for s in range(half)
-                                   if self.slots.get(s, {}).get('alive', False))
-                    e_active = sum(1 for s in range(half, self.requiredPlayers)
-                                   if self.slots.get(s, {}).get('alive', False))
-                    partial_ok = (p_active >= 1 and e_active >= 1
-                                  and total_alive >= 2
-                                  and ready_count == total_alive
-                                  and filled == total_alive)
-                    can_start = full_lobby or partial_ok
                 else:
-                    can_start = (filled == self.requiredPlayers
-                                 and ready_count == self.requiredPlayers
-                                 and total_alive == self.requiredPlayers)
+                    can_start = (p_active >= 1 and e_active >= 1
+                                 and total_alive >= 2
+                                 and ready_count == total_alive
+                                 and filled == total_alive)
 
                 if can_start:
                     # Broadcast START with mySlot specialised per recipient
                     for slot, sess in self.sessions_by_slot.items():
                         if slot in active_slots and sess.alive:
                             sess.send(MSG_START, {})
-                    # COOP: only include actually connected slots in the config.
-                    n = total_alive if is_coop else self.requiredPlayers
+                    n    = total_alive if is_waves else self.requiredPlayers
+                    mode = 'COOP'     if is_waves else self.modeKey
+                    diff = 'MOEILIJK' if is_waves else 'NORMAAL'
                     slotColors = [self.slots.get(s, {}).get('color',
                                    DEFAULT_COLOR_IDX.get(s, 0)) for s in range(n)]
-                    diff = 'MOEILIJK' if is_coop else 'NORMAAL'
                     config = {'biome': self.biomeKey, 'difficulty': diff,
                               'gamemode': self.gamemode, 'seed': self.seed,
-                              'role': 'host', 'mode': self.modeKey,
+                              'role': 'host', 'mode': mode,
                               'mySlot': 0,
                               'slotNames':  [self.slots.get(s, {}).get('name', '')
                                              for s in range(n)],
                               'slotColors': slotColors,
                               'customMap':  self.customMap,
                               'botSlots':   list(self.bot_slots),
-                              'coopPlayers': n if is_coop else None}
+                              'coopPlayers': total_alive if is_waves else None}
+                    # Persist lobby settings so the next lobby reopens in the same configuration
+                    _saveLobbySettings(self.modeKey, self.biomeIdx, self.gamemodeIdx)
                     # Return the sessions list for active slots (excluding slot 0 = host itself)
                     active_sessions = [self.sessions_by_slot[s]
                                        for s in active_slots
@@ -685,22 +851,24 @@ class _HostLobby:
                 _drawParticles(self.screen, self.particles)
 
                 tf = _font(34, bold=True)
-                title = "HOST LOBBY"
-                _renderShadow(self.screen, title, tf, _GOLD_LIGHT,
-                              cx - tf.size(title)[0] // 2, 50, offset=3)
-                _drawDivider(self.screen, 102)
+                _renderShadow(self.screen, self.lobbyName, tf, _GOLD_LIGHT,
+                              cx - tf.size(self.lobbyName)[0] // 2, 50, offset=3)
+                sf = _font(15)
+                st = sf.render(f"Host: {self.myName}", True, _MUTED)
+                self.screen.blit(st, (cx - st.get_width() // 2, 90))
+                _drawDivider(self.screen, 110)
 
                 if self.bindError:
                     _drawCenteredText(self.screen,
                         f"Cannot listen on port {DEFAULT_PORT}: {self.bindError}",
-                        _font(16), (255, 120, 120), 132)
+                        _font(16), (255, 120, 120), 120)
                 else:
-                    addr_str = f"Your address:  {self.localIp} : {DEFAULT_PORT}"
+                    addr_str = f"Jouw adres:  {self.localIp} : {DEFAULT_PORT}"
                     _drawCenteredText(self.screen, addr_str,
-                                      _font(19, bold=True), _GOLD_LIGHT, 132)
+                                      _font(17, bold=True), _GOLD_LIGHT, 120)
                     _drawCenteredText(self.screen,
-                        "(share this IP with your teammates)",
-                        _font(13), _DIM, 156)
+                        "(deel dit IP met je teamgenoten)",
+                        _font(13), _DIM, 142)
 
                 # Slots
                 # Build the "already chosen" set per slot (everybody else's picks)
@@ -709,21 +877,32 @@ class _HostLobby:
                          for s in active_slots
                          if self.slots.get(s, {}).get('alive', s == 0)}
 
-                # Re-layout in case a joiner pushed display past requiredPlayers
-                displayed = self._displayedSlots()
-                slot_rects, swatch_origin, half_n = _layoutSlots(
-                    max(self.requiredPlayers, len(displayed)))
-                mode_y = slots_top + half_n * (row_h + slot_gap_y) + 4
-                # Reposition mode buttons (they live on a row below the grid)
-                for r, x_idx in [(mode1_rect, 0), (mode2_rect, 1),
-                                 (modeC_rect, 2), (mode3_rect, 3),
-                                 (mode4_rect, 4)]:
-                    r.y = mode_y
-                shuffle_rect.y = mode_y
+                # Always 8 slots (4v4)
+                displayed = list(range(8))
+                slot_rects, swatch_origin, half_n = _layoutSlots(8)
+                shuffle_rect.y = slots_top + 4 * (row_h + slot_gap_y) + 4
 
                 # Mode-toggle is disabled once host is ready — needed inside
                 # the slot loop below (for "+ BOT" gating) so hoist it.
                 m_enabled = not self.slots[0]['ready']
+
+                # Team headers and vertical separator — hidden in Waves mode
+                col2_x   = slots_left + slot_w + slot_gap_x
+                sep_x    = slots_left + slot_w + slot_gap_x // 2
+                sep_top  = slots_top - 38
+                sep_bot  = slots_top + 4 * (row_h + slot_gap_y) - slot_gap_y
+                if is_waves:
+                    allies_lbl = _font(16, bold=True).render("ALLIES", True, (80, 140, 220))
+                    total_slots_w = 2 * slot_w + slot_gap_x
+                    self.screen.blit(allies_lbl,
+                        (slots_left + total_slots_w // 2 - allies_lbl.get_width() // 2,
+                         slots_top - 34))
+                else:
+                    pygame.draw.line(self.screen, _GOLD, (sep_x, sep_top), (sep_x, sep_bot), 2)
+                    t1h = _font(16, bold=True).render("TEAM 1", True, (80, 140, 220))
+                    t2h = _font(16, bold=True).render("TEAM 2", True, (220, 80, 80))
+                    self.screen.blit(t1h, (slots_left + slot_w // 2 - t1h.get_width() // 2, slots_top - 34))
+                    self.screen.blit(t2h, (col2_x + slot_w // 2 - t2h.get_width() // 2, slots_top - 34))
 
                 swatch_hover = {}     # slot → hovered color idx
                 bot_btn_hover = set()  # slots whose "BOT" button is hovered
@@ -732,11 +911,12 @@ class _HostLobby:
                     info = self.slots.get(s, {}) if is_active_mode else {}
                     is_bot = s in self.bot_slots
                     slot_alive = info.get('alive', s == 0)
+                    slot_team = 'player' if is_waves else teamOfSlot(s, self.modeKey)
                     _drawPlayerSlot(self.screen, slot_rects[s],
                                     info.get('name', ''), s,
                                     info.get('ready', False),
                                     mine=(s == 0),
-                                    team=teamOfSlot(s, self.modeKey),
+                                    team=slot_team,
                                     colorIdx=info.get('color',
                                                       DEFAULT_COLOR_IDX.get(s, -1)),
                                     active=is_active_mode and slot_alive,
@@ -751,8 +931,7 @@ class _HostLobby:
                             sel_idx, mine_here, taken, mx, my)
 
                     # "+ BOT" on every empty non-host slot in any 2+ team mode.
-                    can_add_bot = (self.modeKey in ('2v2', '3v3', '4v4')
-                                   and s != 0 and is_active_mode
+                    can_add_bot = (s != 0 and is_active_mode
                                    and not slot_alive and not is_bot
                                    and m_enabled)
                     if can_add_bot:
@@ -762,29 +941,11 @@ class _HostLobby:
                         if hov:
                             bot_btn_hover.add(s)
 
-                # Mode toggle — uses m_enabled hoisted above the slot loop
-                m1_hover  = _button(self.screen, mode1_rect, "1v1",  mx, my,
-                                    enabled=m_enabled)
-                m2_hover  = _button(self.screen, mode2_rect, "2v2",  mx, my,
-                                    enabled=m_enabled)
-                mC_hover  = _button(self.screen, modeC_rect, "Coop", mx, my,
-                                    enabled=m_enabled)
-                m3_hover  = _button(self.screen, mode3_rect, "3v3",  mx, my,
-                                    enabled=m_enabled)
-                m4_hover  = _button(self.screen, mode4_rect, "4v4",  mx, my,
-                                    enabled=m_enabled)
-                # Shuffle teams (only meaningful when ≥2 non-host slots)
-                shuffle_enabled = m_enabled and self.requiredPlayers >= 4
+                # Shuffle teams button
+                shuffle_enabled = m_enabled and self._aliveCount() >= 2
                 shuffle_hover = _button(self.screen, shuffle_rect,
-                                        "🎲 Shuffle", mx, my,
+                                        "Shuffle Teams", mx, my,
                                         enabled=shuffle_enabled)
-                # Active mode highlight
-                active_rect = {'1v1':  mode1_rect, '2v2':  mode2_rect,
-                               'COOP': modeC_rect, '3v3':  mode3_rect,
-                               '4v4':  mode4_rect}.get(self.modeKey,
-                                                       mode1_rect)
-                pygame.draw.rect(self.screen, _GOLD_LIGHT, active_rect, 3,
-                                 border_radius=4)
 
                 # Biome picker panel
                 label_surf = _font(15).render("Map Choice", True, _DIM)
@@ -798,9 +959,9 @@ class _HostLobby:
                 ds   = _font(13).render(desc, True, _PARCHMENT)
                 self.screen.blit(ds, (thumb_rect.centerx - ds.get_width() // 2,
                                       thumb_rect.bottom + 58))
-                _button(self.screen, prev_rect, "◀", mx, my,
+                _button(self.screen, prev_rect, "<", mx, my,
                         enabled=m_enabled and not self.customMap)
-                _button(self.screen, next_rect, "▶", mx, my,
+                _button(self.screen, next_rect, ">", mx, my,
                         enabled=m_enabled and not self.customMap)
                 prev_hover = (prev_rect.collidepoint(mx, my) and m_enabled
                               and not self.customMap)
@@ -824,9 +985,9 @@ class _HostLobby:
                 self.screen.blit(gm_label_txt,
                                  (gm_rect.centerx - gm_label_txt.get_width() // 2,
                                   gm_y - 16))
-                gm_prev_hover = _button(self.screen, gm_prev_rect, "◀", mx, my,
+                gm_prev_hover = _button(self.screen, gm_prev_rect, "<", mx, my,
                                         enabled=m_enabled)
-                gm_next_hover = _button(self.screen, gm_next_rect, "▶", mx, my,
+                gm_next_hover = _button(self.screen, gm_next_rect, ">", mx, my,
                                         enabled=m_enabled)
                 gm_name = _MP_GAMEMODES[self.gamemodeIdx][1]
                 pygame.draw.rect(self.screen, (40, 35, 25), gm_rect, border_radius=4)
@@ -836,15 +997,12 @@ class _HostLobby:
                                  (gm_rect.centerx - gm_surf.get_width() // 2,
                                   gm_rect.centery - gm_surf.get_height() // 2))
 
-                # Ready button
-                if self.modeKey == 'COOP':
-                    rdy_enabled = (filled >= 1 and not self.slots[0]['ready'])
-                else:
-                    rdy_enabled = (filled == self.requiredPlayers
-                                   and total_alive == self.requiredPlayers
-                                   and not self.slots[0]['ready'])
+                # Ready button — enabled once conditions per mode are met
+                rdy_enabled = (((is_waves and p_active >= 1) or
+                                (not is_waves and p_active >= 1 and e_active >= 1))
+                               and not self.slots[0]['ready'])
                 rdy_label = ("Ready" if not self.slots[0]['ready']
-                             else "Ready ✓")
+                             else "Ready!")
                 rdy_hover = _button(self.screen, ready_rect, rdy_label,
                                     mx, my, enabled=rdy_enabled)
                 back_hover = _button(self.screen, back_rect, "Back", mx, my)
@@ -853,35 +1011,24 @@ class _HostLobby:
                 if self.statusMsg:
                     _drawCenteredText(self.screen, f"ERROR: {self.statusMsg}",
                                       _font(15), (255, 120, 120), status_y)
-                elif self.modeKey == 'COOP':
+                elif is_waves and p_active >= 1:
                     _drawCenteredText(self.screen,
-                        f"COOP: {total_alive}/4 players connected  —  "
-                        f"host can start with 1 to 4 players",
+                        "All players fight together vs waves — ready up!",
+                        _font(16), (180, 220, 140), status_y)
+                elif not is_waves and p_active >= 1 and e_active >= 1:
+                    _drawCenteredText(self.screen,
+                        "Ready to start!  Empty slots = bigger armies for smaller teams.",
+                        _font(16), (180, 220, 140), status_y)
+                elif is_waves:
+                    _drawCenteredText(self.screen,
+                        "Waves mode: all players on Team 1 fight together.",
                         _font(16), _PARCHMENT, status_y)
-                elif self.modeKey == 'LAST_STAND':
+                else:
+                    missing = ("Team 2" if p_active >= 1 else
+                               "Team 1" if e_active >= 1 else "both teams")
                     _drawCenteredText(self.screen,
-                        f"Waves Coop: {total_alive} player(s) connected  —  "
-                        f"host can start with 1 to 4 players",
+                        f"Waiting for players — {missing} needs at least 1 player.",
                         _font(16), _PARCHMENT, status_y)
-                elif total_alive > self.requiredPlayers:
-                    extra = total_alive - self.requiredPlayers
-                    _drawCenteredText(self.screen,
-                        f"{extra} player(s) too many for {self.modeKey} — "
-                        f"choose a larger mode or have someone leave",
-                        _font(16), (255, 180, 100), status_y)
-                elif filled < self.requiredPlayers:
-                    half = self.requiredPlayers // 2
-                    p_ok = any(self.slots.get(s, {}).get('alive') for s in range(half))
-                    e_ok = any(self.slots.get(s, {}).get('alive') for s in range(half, self.requiredPlayers))
-                    if self.modeKey in ('2v2', '3v3', '4v4') and p_ok and e_ok:
-                        _drawCenteredText(self.screen,
-                            f"Partial lobby — empty slots give the solo player a bigger army. Ready to start!",
-                            _font(16), (180, 220, 140), status_y)
-                    else:
-                        need = self.requiredPlayers - filled
-                        _drawCenteredText(self.screen,
-                            f"Waiting for {need} player(s)…",
-                            _font(16), _PARCHMENT, status_y)
 
                 if click:
                     # Swatch click (only slot 0 allowed here, but loop is cheap)
@@ -894,39 +1041,7 @@ class _HostLobby:
                             break
                     if clicked_swatch:
                         pygame.display.flip(); self.clock.tick(60); continue
-                    def _switchMode(new_mode):
-                        # Drop bots that fall outside the new mode's slot
-                        # range; humans stay parked even if their slot is now
-                        # over-capacity (host will see a "too many players"
-                        # warning instead of silently kicking them).
-                        new_active = set(range(slotCountForMode(new_mode)))
-                        for bs in list(self.bot_slots):
-                            if bs not in new_active:
-                                self.bot_slots.discard(bs)
-                                self.slots.pop(bs, None)
-                        self.modeKey = new_mode
-                        # Re-default every active slot's colour for the new
-                        # mode so team/contrast defaults apply. Preserves
-                        # uniqueness via the running 'taken' set.
-                        used = set()
-                        for s in self._displayedSlots():
-                            info = self.slots.get(s)
-                            if not info: continue
-                            info['color'] = _pickDefaultColor(s, new_mode, used)
-                            used.add(info['color'])
-                        self._broadcastLobby()
-
-                    if m1_hover and m_enabled and self.modeKey != '1v1':
-                        _switchMode('1v1')
-                    elif m2_hover and m_enabled and self.modeKey != '2v2':
-                        _switchMode('2v2')
-                    elif mC_hover and m_enabled and self.modeKey != 'COOP':
-                        _switchMode('COOP')
-                    elif m3_hover and m_enabled and self.modeKey != '3v3':
-                        _switchMode('3v3')
-                    elif m4_hover and m_enabled and self.modeKey != '4v4':
-                        _switchMode('4v4')
-                    elif shuffle_hover and shuffle_enabled:
+                    if shuffle_hover and shuffle_enabled:
                         self._shuffleTeams()
                     elif prev_hover:
                         self.biomeIdx = (self.biomeIdx - 1) % len(_BIOMES)
@@ -1011,7 +1126,7 @@ class _HostLobby:
 # ════════════════════════════════════════════════════════════════════════════
 
 class _JoinLobby:
-    def __init__(self, screen, clock, myName):
+    def __init__(self, screen, clock, myName, connect_to=None):
         self.screen = screen
         self.clock  = clock
         self.tick   = 0
@@ -1025,14 +1140,21 @@ class _JoinLobby:
         self.mySlot      = None
         self.peerVersion = None
         self.lobbyData   = None
-        self.status      = 'scanning'   # start with LAN scan
         self.statusMsg   = None
 
         # Discovery state
         self._scanResults  = []
         self._scanThread   = None
         self._scanDone     = False
-        self._startScan()
+
+        if connect_to is not None:
+            # Lobby was selected in the browser — connect immediately
+            host, port, relay_id = connect_to
+            self.status = 'connecting'
+            self._beginConnectTo(host, port, relay_id)
+        else:
+            self.status = 'scanning'
+            self._startScan()
 
     def _startScan(self):
         import threading
@@ -1314,15 +1436,17 @@ class _JoinLobby:
                         if info.get('active', False):
                             picks[s] = info.get('color', DEFAULT_COLOR_IDX.get(s, 0))
 
+                    is_waves_join = ((self.lobbyData or {}).get('gamemode') == 'LAST_STAND')
                     swatch_hover = {}
                     for s in range(n_slots):
                         is_active = s in active_slots
                         info = by_slot.get(s, {}) if is_active else {}
+                        join_team = 'player' if is_waves_join else teamOfSlot(s, mode)
                         _drawPlayerSlot(self.screen, slot_rects[s],
                                         info.get('name', ''), s,
                                         info.get('ready', False),
                                         mine=(s == self.mySlot),
-                                        team=teamOfSlot(s, mode),
+                                        team=join_team,
                                         colorIdx=info.get('color',
                                                           DEFAULT_COLOR_IDX.get(s, -1)),
                                         active=is_active and info.get('active', False),
@@ -1337,9 +1461,23 @@ class _JoinLobby:
                                 self.screen, sx, sy, swatch_sz, swatch_gap,
                                 sel_idx, mine_here, taken, mx, my)
 
-                    _drawCenteredText(self.screen, f"Mode: {mode}",
-                                      _font(18, bold=True), _GOLD_LIGHT,
-                                      slots_top + 2 * (slot_h + slot_gap_y) + 14)
+                    # Team headers and separator — hidden in Waves mode
+                    col2_x  = slots_left + slot_w + slot_gap_x
+                    sep_x   = slots_left + slot_w + slot_gap_x // 2
+                    sep_top = slots_top - 38
+                    sep_bot = slots_top + 4 * (slot_h + 6 + swatch_sz + slot_gap_y) - slot_gap_y
+                    if is_waves_join:
+                        allies_lbl = _font(16, bold=True).render("ALLIES", True, (80, 140, 220))
+                        total_slots_w = 2 * slot_w + slot_gap_x
+                        self.screen.blit(allies_lbl,
+                            (slots_left + total_slots_w // 2 - allies_lbl.get_width() // 2,
+                             slots_top - 34))
+                    else:
+                        pygame.draw.line(self.screen, _GOLD, (sep_x, sep_top), (sep_x, sep_bot), 2)
+                        t1h = _font(16, bold=True).render("TEAM 1", True, (80, 140, 220))
+                        t2h = _font(16, bold=True).render("TEAM 2", True, (220, 80, 80))
+                        self.screen.blit(t1h, (slots_left + slot_w // 2 - t1h.get_width() // 2, slots_top - 34))
+                        self.screen.blit(t2h, (col2_x   + slot_w // 2 - t2h.get_width() // 2, slots_top - 34))
 
                     # Biome readout
                     label_surf = _font(15).render("Map (host chooses)", True, _DIM)
@@ -1379,7 +1517,7 @@ class _JoinLobby:
                                           SCREEN_HEIGHT - 175)
 
                     rdy_enabled = (self.status == 'connected' and not self.selfReady)
-                    rdy_label   = "Ready" if not self.selfReady else "Ready ✓"
+                    rdy_label   = "Ready" if not self.selfReady else "Ready!"
                     rdy_hover   = _button(self.screen, ready_rect, rdy_label,
                                           mx, my, enabled=rdy_enabled)
                     back_hover  = _button(self.screen, back_rect, "Back", mx, my)

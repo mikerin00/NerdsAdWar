@@ -87,7 +87,6 @@ class RendererMixin:
         ms.fill(BG_COLOR)
         if self.terrain.surface:
             ms.blit(self.terrain.surface, (0, 0))
-        self._drawSquares(ms)
         self._drawOrders(ms)
         self._drawTerritoryBorder(ms)
         for op in self.outposts:
@@ -480,7 +479,7 @@ class RendererMixin:
         enemyHq = next((h for h in self.headquarters if h.team == 'enemy'), None)
         hq_taken = bool(enemyHq and enemyHq.captured)
 
-        title = "★ Capture Objectives"
+        title = "Capture Objectives"
         self.screen.blit(font.render(title, True, (220, 190, 60)),
                          (cx - font.size(title)[0] // 2, 14))
 
@@ -501,7 +500,7 @@ class RendererMixin:
         pygame.draw.rect(self.screen, (30, 30, 30),
                          (hx - pip_r, py - pip_r, pip_r * 2, pip_r * 2), 2)
 
-        score = f"Outposts: {taken}/{total}   HQ: {'✓' if hq_taken else '✗'}"
+        score = f"Outposts: {taken}/{total}   HQ: {'[OK]' if hq_taken else '[X]'}"
         score_surf = font.render(score, True, (220, 210, 170))
         self.screen.blit(score_surf, (cx - score_surf.get_width() // 2, py + pip_r + 6))
 
@@ -511,7 +510,7 @@ class RendererMixin:
         cx   = SCREEN_WIDTH // 2
         font = self.font
 
-        title = "♛  Hunt the Commander"
+        title = "Hunt the Commander"
         self.screen.blit(font.render(title, True, GOLD),
                          (cx - font.size(title)[0] // 2, 10))
 
@@ -547,7 +546,7 @@ class RendererMixin:
         p_sc = min(WIN, self._conquestScore.get('player', 0))
         e_sc = min(WIN, self._conquestScore.get('enemy',  0))
 
-        title = "⚑  Conquest"
+        title = "Conquest"
         self.screen.blit(font.render(title, True, (200, 180, 60)),
                          (cx - font.size(title)[0] // 2, 8))
 

@@ -88,8 +88,42 @@ def _drawBiomeThumbnail(surf, rect, biome_key):
     surf.blit(_thumbCache[cache_key], rect.topleft)
 
 
+_BIOME_IMAGE_FILES = {
+    'GRASSLAND':   'grassland.png',
+    'FOREST':      'forest.png',
+    'RIVER_VALLEY':'river.png',
+    'HIGHLANDS':   'highlands.png',
+    'DRY_PLAINS':  'dryplanes.png',
+    'MIXED':       'mixed.png',
+    'WETLANDS':    'wetlands.png',
+    'TWIN_RIVERS': 'twinrivers.png',
+    'LAKELANDS':   'lakelands.png',
+}
+
+
 def _buildBiomeThumbnail(biome_key, W, H):
+    import os as _os
     import random as _rmod
+
+    if biome_key == 'RANDOM':
+        surf = pygame.Surface((W, H))
+        surf.fill((45, 38, 28))
+        qf = _font(H // 2, bold=True)
+        qt = qf.render("?", True, _GOLD_LIGHT)
+        surf.blit(qt, (W // 2 - qt.get_width() // 2, H // 2 - qt.get_height() // 2))
+        pygame.draw.rect(surf, _GOLD, surf.get_rect(), 2, border_radius=4)
+        return surf
+
+    fname = _BIOME_IMAGE_FILES.get(biome_key)
+    if fname:
+        path = _os.path.join(_os.getcwd(), 'game_visuals', 'map_minis', fname)
+        try:
+            img = pygame.image.load(path).convert()
+            img = pygame.transform.scale(img, (W, H))
+            pygame.draw.rect(img, _GOLD, img.get_rect(), 2, border_radius=4)
+            return img
+        except Exception:
+            pass
 
     p   = _BIOME_THUMB_PARAMS.get(biome_key, _BIOME_THUMB_PARAMS['MIXED'])
     rng = _rmod.Random(abs(hash(biome_key)) % (2**31))
@@ -482,7 +516,7 @@ class LobbyScreen:
                                   box.rect.bottom - badge.get_height() - 4))
 
         # Footer buttons
-        _drawFooterBtn(surf, self._btnBack,  "← Back",       mx, my, gold=False)
+        _drawFooterBtn(surf, self._btnBack,  "< Back",        mx, my, gold=False)
         _drawFooterBtn(surf, self._btnStart, "Start Battle!", mx, my, gold=True)
 
         pygame.display.flip()

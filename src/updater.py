@@ -25,42 +25,78 @@ _TIMEOUT_CHECK    = 3.0    # seconden voor de API-check
 _TIMEOUT_DOWNLOAD = 120.0  # seconden voor de download
 _UA = {'User-Agent': 'NerdsAdWar-Updater'}
 
-# ── Portrait assets ──────────────────────────────────────────────────────────
-# Portraits are PNGs in story/characters_PNG/ — not bundled in the exe so they
-# must be downloaded from the repo on first run.  We fetch only missing files.
+# ── Asset download helpers ────────────────────────────────────────────────────
+# Portraits and game_visuals are not bundled in the exe — fetch missing files
+# from the repo on first run (background thread, silent on failure).
 
-_PORTRAIT_BRANCH = 'main'
-_PORTRAIT_DIR    = os.path.join('story', 'characters_PNG')
-_PORTRAIT_FILES  = [
-    'hero.png', 'koen.png', 'tim.png', 'mika.png',
-    'luuk.png', 'matthijs.png', 'bronisz.png', 'soldaat.png',
-]
+_ASSET_BRANCH = 'main'
 
 
-def _portrait_url(filename: str) -> str:
+def _raw_url(repo_path: str) -> str:
+    """URL for a raw file in the repo (repo_path uses forward slashes)."""
     return (f"https://raw.githubusercontent.com/{UPDATE_REPO}/"
-            f"{_PORTRAIT_BRANCH}/{_PORTRAIT_DIR.replace(os.sep, '/')}/{filename}")
+            f"{_ASSET_BRANCH}/{repo_path}")
 
 
-def _fetch_portrait(filename: str):
-    local = os.path.join(os.getcwd(), _PORTRAIT_DIR, filename)
-    if os.path.isfile(local):
+def _fetch_file(repo_path: str, local_path: str):
+    """Download repo_path → local_path if the local file is missing."""
+    if os.path.isfile(local_path):
         return
     try:
-        os.makedirs(os.path.dirname(local), exist_ok=True)
-        req = urllib.request.Request(_portrait_url(filename), headers=_UA)
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        req = urllib.request.Request(_raw_url(repo_path), headers=_UA)
         with urllib.request.urlopen(req, timeout=10.0) as r, \
-             open(local, 'wb') as f:
+             open(local_path, 'wb') as f:
             f.write(r.read())
     except Exception:
         pass
+
+
+# ── Portrait assets ───────────────────────────────────────────────────────────
+_PORTRAIT_DIR   = os.path.join('story', 'characters_PNG')
+_PORTRAIT_FILES = [
+    'hero.png', 'koen.png', 'tim.png', 'mika.png',
+    'luuk.png', 'matthijs.png', 'bronisz.png', 'soldaat.png',
+]
 
 
 def downloadPortraits():
     """Download any missing portrait PNGs in a background thread."""
     def _worker():
         for fn in _PORTRAIT_FILES:
-            _fetch_portrait(fn)
+            repo  = f"story/characters_PNG/{fn}"
+            local = os.path.join(os.getcwd(), _PORTRAIT_DIR, fn)
+            _fetch_file(repo, local)
+    threading.Thread(target=_worker, daemon=True).start()
+
+
+# ── Game visuals ──────────────────────────────────────────────────────────────
+_GAME_VISUALS_FILES = [
+    'game_visuals/menu_background.png',
+    'game_visuals/campain/palace.png',
+    'game_visuals/campain/borderlands.png',
+    'game_visuals/campain/river.png',
+    'game_visuals/campain/dry_planes.png',
+    'game_visuals/campain/highlands.png',
+    'game_visuals/campain/matthijs_fort.png',
+    'game_visuals/map_minis/grassland.png',
+    'game_visuals/map_minis/forest.png',
+    'game_visuals/map_minis/river.png',
+    'game_visuals/map_minis/highlands.png',
+    'game_visuals/map_minis/dryplanes.png',
+    'game_visuals/map_minis/mixed.png',
+    'game_visuals/map_minis/wetlands.png',
+    'game_visuals/map_minis/twinrivers.png',
+    'game_visuals/map_minis/lakelands.png',
+]
+
+
+def downloadGameVisuals():
+    """Download any missing game_visuals PNGs in a background thread."""
+    def _worker():
+        for repo_path in _GAME_VISUALS_FILES:
+            local = os.path.join(os.getcwd(), *repo_path.split('/'))
+            _fetch_file(repo_path, local)
     threading.Thread(target=_worker, daemon=True).start()
 
 

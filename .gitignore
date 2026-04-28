@@ -12,6 +12,9 @@ nuitka-crash-report.xml
 *.exe
 *.msi
 
+# User account data (contains password hashes and session tokens)
+accounts/
+
 # Runtime files generated next to the exe
 settings.json
 keybinds.json

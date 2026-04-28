@@ -137,7 +137,8 @@ if __name__ == '__main__':
         _draw_loading(0.10, "Checking for updates…")
         from src import updater
         from src.version import VERSION
-        updater.downloadPortraits()   # background thread — downloads missing PNGs
+        updater.downloadPortraits()     # background thread — downloads missing PNGs
+        updater.downloadGameVisuals()   # background thread — downloads missing artwork
         if updater.runUpdateFlow(VERSION):
             pygame.quit()
             raise SystemExit
@@ -155,7 +156,9 @@ if __name__ == '__main__':
                                     markMissionComplete, TutorialMenu,
                                     markTutorialComplete, SettingsMenu,
                                     WhatsNewScreen, shouldShowWhatsNew,
-                                    markWhatsNewSeen, StoryDialogScreen)
+                                    markWhatsNewSeen, StoryDialogScreen,
+                                    AccountLoginScreen, AccountProfileScreen)
+        from src import accounts
 
         _draw_loading(0.85, "Loading game…")
         from src.game.game import Game
@@ -185,11 +188,57 @@ if __name__ == '__main__':
                 pygame.quit()
                 raise SystemExit
 
+        # ── Account login gate ────────────────────────────────────────────────────
+        def _ensureLoggedIn() -> bool:
+            """Show the login screen until signed in. Returns False if user quits."""
+            while accounts.getActiveUser() is None:
+                result = AccountLoginScreen(screen, clock).run()
+                if result == 'quit':
+                    return False
+            return True
+
+        if not _ensureLoggedIn():
+            pygame.quit()
+            raise SystemExit
+
+        # ── Stats helper ──────────────────────────────────────────────────────────
+        def _recordStats(game, gamemode: str = 'STANDAARD',
+                         is_campaign: bool = False) -> None:
+            user = accounts.getActiveUser()
+            if not user:
+                return
+            name = user['username']
+            won  = game.winner == 'player'
+            kw   = {'games_played': 1}
+            if won:
+                kw['total_wins']   = 1
+            else:
+                kw['total_losses'] = 1
+            if gamemode == 'FOG' and won:
+                kw['fog_wins'] = 1
+            if gamemode == 'LAST_STAND':
+                kw['record_wave'] = getattr(game, '_waveNumber', 0)
+            if is_campaign:
+                if won:
+                    kw['campaign_wins']   = 1
+                else:
+                    kw['campaign_losses'] = 1
+            accounts.updateStats(name, **kw)
+
         # ── Main loop (menu → lobby → game → menu → …) ───────────────────────────
         while True:
             mode = MainMenu(screen, clock).run()
             if mode == 'quit':
                 break
+
+            if mode == 'account':
+                result = AccountProfileScreen(screen, clock).run()
+                if result == 'quit':
+                    break
+                if result == 'logout':
+                    if not _ensureLoggedIn():
+                        break
+                continue
 
             if mode == 'singleplayer':
                 config = LobbyScreen(screen, clock).run()
@@ -199,7 +248,7 @@ if __name__ == '__main__':
                     continue
 
                 audio.stop_music()
-                outcome = Game(
+                game    = Game(
                     seed       = random.randint(0, 9999),
                     screen     = screen,
                     clock      = clock,
@@ -207,7 +256,9 @@ if __name__ == '__main__':
                     difficulty = config['difficulty'],
                     gamemode   = config['gamemode'],
                     customMap  = config.get('customMap'),
-                ).run()
+                )
+                outcome = game.run()
+                _recordStats(game, config['gamemode'])
 
                 if outcome == 'quit':
                     break
@@ -224,27 +275,29 @@ if __name__ == '__main__':
                         break  # back to main menu
 
                     audio.stop_music()
+                    _mp_game = Game(
+                        seed         = config['seed'],
+                        screen       = screen,
+                        clock        = clock,
+                        biome        = config['biome'],
+                        difficulty   = config['difficulty'],
+                        gamemode     = config['gamemode'],
+                        netRole      = config['role'],
+                        sessions     = sessions,
+                        mode         = config.get('mode', '1v1'),
+                        mySlot       = config.get('mySlot', 0),
+                        slotNames    = config.get('slotNames', []),
+                        slotColors   = config.get('slotColors', []),
+                        customMap    = config.get('customMap'),
+                        botSlots     = config.get('botSlots', []),
+                        coopPlayers  = config.get('coopPlayers'),
+                    )
                     try:
-                        game_outcome = Game(
-                            seed         = config['seed'],
-                            screen       = screen,
-                            clock        = clock,
-                            biome        = config['biome'],
-                            difficulty   = config['difficulty'],
-                            gamemode     = config['gamemode'],
-                            netRole      = config['role'],
-                            sessions     = sessions,
-                            mode         = config.get('mode', '1v1'),
-                            mySlot       = config.get('mySlot', 0),
-                            slotNames    = config.get('slotNames', []),
-                            slotColors   = config.get('slotColors', []),
-                            customMap    = config.get('customMap'),
-                            botSlots     = config.get('botSlots', []),
-                            coopPlayers  = config.get('coopPlayers'),
-                        ).run()
+                        game_outcome = _mp_game.run()
                     finally:
                         for s in sessions or []:
                             s.close()
+                    _recordStats(_mp_game, config['gamemode'])
 
                     if game_outcome == 'quit':
                         _mp_done = True
@@ -289,7 +342,7 @@ if __name__ == '__main__':
                     markTutorialComplete(mission['id'])
                 if game_outcome == 'quit':
                     break
-                continue
+                continue  # tutorial wins/losses are not counted in account stats
 
             if mode == 'campaign':
                 outcome, mission = CampaignMenu(screen, clock).run()
@@ -318,6 +371,7 @@ if __name__ == '__main__':
                     aiPersonality = mission.get('aiPersonality'),
                 )
                 game_outcome = game.run()
+                _recordStats(game, mission['gamemode'], is_campaign=True)
 
                 if game.winner == 'player':
                     markMissionComplete(mission['id'], game.calcStars())
