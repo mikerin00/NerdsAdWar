@@ -3,6 +3,7 @@
 # AccountProfileScreen — profile, stats, avatar, sign-out.
 
 import os
+import threading
 
 import pygame
 
@@ -106,6 +107,7 @@ class AccountLoginScreen:
         self._password2  = ''        # confirm (register only)
         self._activeField = 'user'  # 'user' | 'pass' | 'pass2'
         self._error      = ''
+        self._pending    = False     # True while server call is in flight
 
         cx = SCREEN_WIDTH  // 2
         cy = SCREEN_HEIGHT // 2
@@ -152,20 +154,29 @@ class AccountLoginScreen:
             self._password2 = buf
 
     def _doAction(self):
+        if self._pending:
+            return
         self._error = ''
-        if self._mode == 'login':
-            ok, result = accounts.login(self._username, self._password)
-        else:
-            if self._password != self._password2:
-                self._error = "Wachtwoorden komen niet overeen."
-                return
-            ok, result = accounts.register(self._username, self._password)
+        if self._mode == 'register' and self._password != self._password2:
+            self._error = 'Wachtwoorden komen niet overeen.'
+            return
 
-        if ok:
-            audio.play_sfx('click')
-            self._result = 'logged_in'
-        else:
-            self._error = result
+        self._pending = True
+        username, password, mode = self._username, self._password, self._mode
+
+        def _work():
+            if mode == 'login':
+                ok, result = accounts.login(username, password)
+            else:
+                ok, result = accounts.register(username, password)
+            if ok:
+                audio.play_sfx('click')
+                self._result = 'logged_in'
+            else:
+                self._error = result
+            self._pending = False
+
+        threading.Thread(target=_work, daemon=True).start()
 
     def _toggleMode(self):
         self._mode      = 'register' if self._mode == 'login' else 'login'
@@ -188,18 +199,19 @@ class AccountLoginScreen:
                         return 'quit'
                     self._handleKey(event)
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    if self._rect_user.collidepoint(mx, my):
-                        self._activeField = 'user'
-                    elif self._rect_pass.collidepoint(mx, my):
-                        self._activeField = 'pass'
-                    elif self._mode == 'register' and self._rect_pass2.collidepoint(mx, my):
-                        self._activeField = 'pass2'
-                    elif self._btn_action.collidepoint(mx, my):
-                        audio.play_sfx('click')
-                        self._doAction()
-                    elif self._btn_toggle.collidepoint(mx, my):
-                        audio.play_sfx('click')
-                        self._toggleMode()
+                    if not self._pending:
+                        if self._rect_user.collidepoint(mx, my):
+                            self._activeField = 'user'
+                        elif self._rect_pass.collidepoint(mx, my):
+                            self._activeField = 'pass'
+                        elif self._mode == 'register' and self._rect_pass2.collidepoint(mx, my):
+                            self._activeField = 'pass2'
+                        elif self._btn_action.collidepoint(mx, my):
+                            audio.play_sfx('click')
+                            self._doAction()
+                        elif self._btn_toggle.collidepoint(mx, my):
+                            audio.play_sfx('click')
+                            self._toggleMode()
 
             if self._result:
                 return self._result
@@ -255,14 +267,19 @@ class AccountLoginScreen:
             surf.blit(et, (cx - et.get_width() // 2,
                            self._btn_action.y - 26))
 
-        # Action button
+        # Action button (or "Verbinden..." spinner when pending)
         btn_y_base = cy + (150 if self._mode == 'register' else 130)
         btn_rect = pygame.Rect(cx - 80, btn_y_base, 160, 44)
-        _drawButton(surf, btn_rect,
-                    "Inloggen" if self._mode == 'login' else "Registreer",
-                    mx, my, font_size=20)
-        if btn_rect.collidepoint(mx, my) and pygame.mouse.get_pressed()[0]:
-            pass  # handled in event loop
+        if self._pending:
+            dots = '.' * ((self.tick // 20) % 4)
+            pf  = _font(18)
+            pt  = pf.render(f'Verbinden{dots}', True, _GOLD)
+            surf.blit(pt, (cx - pt.get_width() // 2,
+                           btn_rect.centery - pt.get_height() // 2))
+        else:
+            _drawButton(surf, btn_rect,
+                        'Inloggen' if self._mode == 'login' else 'Registreer',
+                        mx, my, font_size=20)
 
         # Actually use the pre-computed rects for clicks but draw at correct pos
         self._btn_action = btn_rect
