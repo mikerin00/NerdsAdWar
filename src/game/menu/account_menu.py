@@ -312,22 +312,52 @@ class AccountProfileScreen:
         return surf
 
     def _pickAvatar(self, username):
-        """Open a file dialog to pick a new avatar image."""
+        """Open the native Windows file-picker dialog to choose a profile photo.
+        Uses Win32 GetOpenFileNameW directly to avoid tkinter ↔ pygame crashes."""
+        import ctypes
+        import ctypes.wintypes as wt
+
+        class _OFN(ctypes.Structure):
+            _fields_ = [
+                ('lStructSize',       wt.DWORD),
+                ('hwndOwner',         wt.HWND),
+                ('hInstance',         wt.HINSTANCE),
+                ('lpstrFilter',       wt.LPCWSTR),
+                ('lpstrCustomFilter', wt.LPWSTR),
+                ('nMaxCustFilter',    wt.DWORD),
+                ('nFilterIndex',      wt.DWORD),
+                ('lpstrFile',         wt.LPWSTR),
+                ('nMaxFile',          wt.DWORD),
+                ('lpstrFileTitle',    wt.LPWSTR),
+                ('nMaxFileTitle',     wt.DWORD),
+                ('lpstrInitialDir',   wt.LPCWSTR),
+                ('lpstrTitle',        wt.LPCWSTR),
+                ('Flags',             wt.DWORD),
+                ('nFileOffset',       wt.WORD),
+                ('nFileExtension',    wt.WORD),
+                ('lpstrDefExt',       wt.LPCWSTR),
+                ('lCustData',         ctypes.c_long),
+                ('lpfnHook',          ctypes.c_void_p),
+                ('lpTemplateName',    wt.LPCWSTR),
+                ('pvReserved',        ctypes.c_void_p),
+                ('dwReserved',        wt.DWORD),
+                ('FlagsEx',           wt.DWORD),
+            ]
+
         try:
-            import tkinter as tk
-            from tkinter import filedialog
-            root = tk.Tk()
-            root.withdraw()
-            root.attributes('-topmost', True)
-            path = filedialog.askopenfilename(
-                title="Kies een profielfoto",
-                filetypes=[("Afbeeldingen", "*.png *.jpg *.jpeg *.bmp *.gif"),
-                           ("Alle bestanden", "*.*")]
-            )
-            root.destroy()
-            if path:
-                accounts.setAvatar(username, path)
-                self._avatarCache = None
+            buf = ctypes.create_unicode_buffer(32768)
+            ofn = _OFN()
+            ofn.lStructSize = ctypes.sizeof(_OFN)
+            ofn.lpstrFilter = "Afbeeldingen\0*.png;*.jpg;*.jpeg;*.bmp;*.gif\0Alle bestanden\0*.*\0"
+            ofn.lpstrFile   = buf
+            ofn.nMaxFile    = len(buf)
+            ofn.lpstrTitle  = "Kies een profielfoto"
+            ofn.Flags       = 0x00001000 | 0x00000800  # OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST
+            if ctypes.windll.comdlg32.GetOpenFileNameW(ctypes.byref(ofn)):
+                path = buf.value
+                if path and os.path.isfile(path):
+                    accounts.setAvatar(username, path)
+                    self._avatarCache = None
         except Exception:
             pass
 

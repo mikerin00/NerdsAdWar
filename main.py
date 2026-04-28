@@ -116,18 +116,13 @@ if __name__ == '__main__':
         _ctypes.windll.user32.MessageBoxW(None, msg[:500], "Crash", 0x10)
 
     try:
-        # Read desktop resolution BEFORE creating any window — otherwise Info()
-        # returns the loading-window resolution on some systems.
+        # Fixed logical resolution: all menus and game UI are authored in 1920×1080
+        # space. pygame.SCALED maps this to whatever the physical screen is,
+        # with automatic letterboxing on non-16:9 monitors. This keeps every UI
+        # element inside the visible area regardless of the actual screen format.
         pygame.init()
-        _desktop_info = pygame.display.Info()
-        _DESK_W = _desktop_info.current_w
-        _DESK_H = _desktop_info.current_h
 
-        # Patch constants NOW, before all imports — otherwise UI modules load
-        # with the default 1280×720 and the entire layout won't scale.
         import src.constants as C
-        C.SCREEN_WIDTH  = _DESK_W
-        C.SCREEN_HEIGHT = _DESK_H
 
         # Show loading window as early as possible
         _init_loading()

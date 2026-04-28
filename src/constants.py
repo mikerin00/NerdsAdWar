@@ -1,8 +1,8 @@
 # Module: constants
 # All game-wide constants, colors, and unit statistics
 
-SCREEN_WIDTH  = 1280
-SCREEN_HEIGHT = 720
+SCREEN_WIDTH  = 1920
+SCREEN_HEIGHT = 1080
 FPS           = 60
 TITLE         = "Nerds at War"
 
