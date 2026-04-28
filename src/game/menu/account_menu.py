@@ -300,6 +300,231 @@ class AccountLoginScreen:
 # AccountProfileScreen
 # ══════════════════════════════════════════════════════════════════════════════
 
+# ══════════════════════════════════════════════════════════════════════════════
+# FriendsScreen
+# ══════════════════════════════════════════════════════════════════════════════
+
+class FriendsScreen:
+    """Vriendenlijst — online status + stats per vriend, vriend toevoegen/verwijderen."""
+
+    _FW = 380   # breedte invoerveld
+
+    def __init__(self, screen, clock):
+        self.screen = screen
+        self.clock  = clock
+        self.tick   = 0
+        self.particles, self.prng = _makeParticles(40)
+
+        self._friends      = None   # None = laden, [] = leeg/fout, list = geladen
+        self._add_input    = ''
+        self._add_error    = ''
+        self._add_ok       = ''
+        self._add_pending  = False
+        self._field_active = False
+        self._remove_pending = set()   # usernames waarvoor remove loopt
+
+        threading.Thread(target=self._loadFriends, daemon=True).start()
+
+    def _loadFriends(self):
+        self._friends = accounts.getFriends()
+
+    def _reload(self):
+        self._friends = None
+        threading.Thread(target=self._loadFriends, daemon=True).start()
+
+    def _doAdd(self):
+        if self._add_pending or not self._add_input.strip():
+            return
+        self._add_error = ''
+        self._add_ok    = ''
+        self._add_pending = True
+        name = self._add_input.strip()
+
+        def _work():
+            ok, msg = accounts.addFriend(name)
+            if ok:
+                self._add_ok    = f'{name} toegevoegd!'
+                self._add_input = ''
+                self._reload()
+            else:
+                self._add_error = msg
+            self._add_pending = False
+
+        threading.Thread(target=_work, daemon=True).start()
+
+    def _doRemove(self, friend_username: str):
+        if friend_username in self._remove_pending:
+            return
+        self._remove_pending.add(friend_username)
+
+        def _work():
+            accounts.removeFriend(friend_username)
+            self._remove_pending.discard(friend_username)
+            self._reload()
+
+        threading.Thread(target=_work, daemon=True).start()
+
+    def run(self):
+        cx  = SCREEN_WIDTH  // 2
+        bw, bh = 200, 44
+        btn_back = pygame.Rect(cx - bw // 2, SCREEN_HEIGHT - 80, bw, bh)
+        fw = self._FW
+        field_rect = pygame.Rect(cx - fw // 2, 200, fw, 44)
+        btn_add    = pygame.Rect(cx + fw // 2 + 12, 200, 140, 44)
+
+        while True:
+            mx, my = pygame.mouse.get_pos()
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    return 'quit'
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        return 'back'
+                    if self._field_active:
+                        if event.key == pygame.K_BACKSPACE:
+                            self._add_input = self._add_input[:-1]
+                        elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                            self._doAdd()
+                        elif event.unicode and event.unicode.isprintable() and len(self._add_input) < 24:
+                            self._add_input += event.unicode
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    if btn_back.collidepoint(mx, my):
+                        audio.play_sfx('click')
+                        return 'back'
+                    if btn_add.collidepoint(mx, my) and not self._add_pending:
+                        audio.play_sfx('click')
+                        self._doAdd()
+                    self._field_active = field_rect.collidepoint(mx, my)
+                    # Remove buttons — handled in _draw via hit-test list
+                    if isinstance(self._friends, list):
+                        for i, f in enumerate(self._friends):
+                            rbtn = self._removeRect(i)
+                            if rbtn.collidepoint(mx, my) and f['username'].lower() not in self._remove_pending:
+                                audio.play_sfx('click')
+                                self._doRemove(f['username'].lower())
+
+            self.tick += 1
+            _updateParticles(self.particles, self.prng)
+            self._draw(mx, my, btn_back, field_rect, btn_add)
+            self.clock.tick(60)
+
+    def _removeRect(self, row_index: int) -> pygame.Rect:
+        """Hitbox voor de verwijder-knop van een vriendrij."""
+        list_y = 310
+        row_h  = 52
+        return pygame.Rect(SCREEN_WIDTH // 2 + 420, list_y + row_index * row_h + 10, 100, 32)
+
+    def _draw(self, mx, my, btn_back, field_rect, btn_add):
+        surf = self.screen
+        cx   = SCREEN_WIDTH // 2
+
+        _drawBackground(surf, self.tick)
+        _drawParticles(surf, self.particles)
+
+        # Titel
+        tf    = _font(42, bold=True)
+        title = 'Vrienden'
+        tw    = tf.size(title)[0]
+        _renderShadow(surf, title, tf, _GOLD_LIGHT, cx - tw // 2, 38, offset=3)
+        _drawDivider(surf, 98)
+
+        # ── Vriend toevoegen ─────────────────────────────────────────────────
+        lf = _font(16)
+        lt = lf.render('Vriend toevoegen via gebruikersnaam:', True, _MUTED)
+        surf.blit(lt, (cx - lt.get_width() // 2, 160))
+
+        _drawField(surf, field_rect, '', self._add_input,
+                   self._field_active, mask=False, tick=self.tick)
+
+        if self._add_pending:
+            af = _font(16)
+            at = af.render('Toevoegen...', True, _GOLD)
+            surf.blit(at, (btn_add.x + btn_add.width // 2 - at.get_width() // 2,
+                           btn_add.centery - at.get_height() // 2))
+        else:
+            _drawButton(surf, btn_add, 'Toevoegen', mx, my, font_size=16)
+
+        if self._add_error:
+            ef = _font(15)
+            et = ef.render(self._add_error, True, (180, 60, 60))
+            surf.blit(et, (cx - et.get_width() // 2, 256))
+        elif self._add_ok:
+            of = _font(15)
+            ot = of.render(self._add_ok, True, (80, 200, 80))
+            surf.blit(ot, (cx - ot.get_width() // 2, 256))
+
+        _drawDivider(surf, 280)
+
+        # ── Vriendenlijst ────────────────────────────────────────────────────
+        list_y = 310
+        row_h  = 52
+
+        if self._friends is None:
+            wf = _font(20)
+            wt = wf.render('Laden...', True, _MUTED)
+            surf.blit(wt, (cx - wt.get_width() // 2, list_y + 20))
+        elif not self._friends:
+            wf = _font(20)
+            wt = wf.render('Nog geen vrienden — voeg iemand toe hierboven.', True, _MUTED)
+            surf.blit(wt, (cx - wt.get_width() // 2, list_y + 20))
+        else:
+            nf  = _font(20, bold=True)
+            sf  = _font(16)
+            for i, f in enumerate(self._friends):
+                ry   = list_y + i * row_h
+                name = f['username']
+                online = f.get('online', False)
+                stats  = f.get('stats', {})
+                wins   = stats.get('total_wins', 0)
+                losses = stats.get('total_losses', 0)
+                played = stats.get('games_played', 0)
+                rate   = int(wins / played * 100) if played > 0 else 0
+
+                # Rij achtergrond
+                if i % 2 == 0:
+                    row_bg = pygame.Surface((860, row_h - 4), pygame.SRCALPHA)
+                    row_bg.fill((168, 110, 50, 14))
+                    surf.blit(row_bg, (cx - 430, ry))
+
+                # Online/offline stip
+                dot_color = (80, 210, 80) if online else (110, 110, 110)
+                pygame.draw.circle(surf, dot_color, (cx - 410, ry + row_h // 2), 7)
+                pygame.draw.circle(surf, (20, 20, 20), (cx - 410, ry + row_h // 2), 7, 1)
+
+                # Naam
+                name_surf = nf.render(name, True, _WHITE if online else _MUTED)
+                surf.blit(name_surf, (cx - 390, ry + 8))
+
+                # Status label
+                status_txt = 'Online' if online else 'Offline'
+                st_color   = (80, 210, 80) if online else (100, 100, 100)
+                st_surf    = sf.render(status_txt, True, st_color)
+                surf.blit(st_surf, (cx - 390, ry + 30))
+
+                # Stats
+                stats_txt = f'W: {wins}  V: {losses}  Potjes: {played}  ({rate}% winrate)'
+                ss = sf.render(stats_txt, True, _PARCHMENT)
+                surf.blit(ss, (cx - 100, ry + row_h // 2 - ss.get_height() // 2))
+
+                # Verwijder knop
+                rbtn = self._removeRect(i)
+                if f['username'].lower() in self._remove_pending:
+                    rt = sf.render('...', True, _MUTED)
+                    surf.blit(rt, (rbtn.x + rbtn.width // 2 - rt.get_width() // 2,
+                                   rbtn.centery - rt.get_height() // 2))
+                else:
+                    col = (200, 60, 60) if rbtn.collidepoint(mx, my) else (140, 50, 50)
+                    pygame.draw.rect(surf, col, rbtn, border_radius=4)
+                    pygame.draw.rect(surf, (200, 100, 100), rbtn, 1, border_radius=4)
+                    rt = sf.render('Verwijder', True, _WHITE)
+                    surf.blit(rt, (rbtn.x + rbtn.width // 2 - rt.get_width() // 2,
+                                   rbtn.centery - rt.get_height() // 2))
+
+        # Terug knop
+        _drawButton(surf, btn_back, '< Terug', mx, my)
+        pygame.display.flip()
+
+
 _STAT_LABELS = [
     ('games_played',    'Potjes gespeeld'),
     ('total_wins',      'Gewonnen'),
@@ -382,9 +607,10 @@ class AccountProfileScreen:
         cx = SCREEN_WIDTH  // 2
         bw, bh = 200, 44
 
-        btn_back   = pygame.Rect(cx - bw // 2, SCREEN_HEIGHT - 80, bw, bh)
-        btn_logout = pygame.Rect(cx - bw // 2 + 220, SCREEN_HEIGHT - 80, bw, bh)
-        btn_avatar = pygame.Rect(cx + 58, 160, 140, 34)
+        btn_back    = pygame.Rect(cx - bw // 2, SCREEN_HEIGHT - 80, bw, bh)
+        btn_logout  = pygame.Rect(cx - bw // 2 + 220, SCREEN_HEIGHT - 80, bw, bh)
+        btn_friends = pygame.Rect(cx - bw // 2 - 220, SCREEN_HEIGHT - 80, bw, bh)
+        btn_avatar  = pygame.Rect(cx + 58, 160, 140, 34)
 
         while True:
             user = accounts.getActiveUser()
@@ -405,16 +631,21 @@ class AccountProfileScreen:
                         audio.play_sfx('click')
                         accounts.logout()
                         return 'logout'
+                    if btn_friends.collidepoint(mx, my):
+                        audio.play_sfx('click')
+                        result = FriendsScreen(self.screen, self.clock).run()
+                        if result == 'quit':
+                            return 'quit'
                     if btn_avatar.collidepoint(mx, my):
                         audio.play_sfx('click')
                         self._pickAvatar(user['username'])
 
             self.tick += 1
             _updateParticles(self.particles, self.prng)
-            self._draw(mx, my, user, btn_back, btn_logout, btn_avatar)
+            self._draw(mx, my, user, btn_back, btn_logout, btn_friends, btn_avatar)
             self.clock.tick(60)
 
-    def _draw(self, mx, my, user, btn_back, btn_logout, btn_avatar):
+    def _draw(self, mx, my, user, btn_back, btn_logout, btn_friends, btn_avatar):
         surf = self.screen
         cx   = SCREEN_WIDTH  // 2
 
@@ -482,8 +713,8 @@ class AccountProfileScreen:
             surf.blit(vt, (col_val - vt.get_width(), y + 6))
 
         # ── Buttons ────────────────────────────────────────────────────────
-        _drawButton(surf, btn_back,   "< Terug",      mx, my)
-        _drawButton(surf, btn_logout, "Uitloggen",   mx, my,
-                    font_size=20)
+        _drawButton(surf, btn_friends, "Vrienden",   mx, my, font_size=20)
+        _drawButton(surf, btn_back,    "< Terug",    mx, my)
+        _drawButton(surf, btn_logout,  "Uitloggen",  mx, my, font_size=20)
 
         pygame.display.flip()

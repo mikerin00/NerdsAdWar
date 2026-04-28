@@ -315,6 +315,92 @@ def _handle_acc_login(conn, d):
     _send(conn, 'acc_ok', {'account': pub})
     conn.close()
 
+# Online presence: username_key → monotonic timestamp of last heartbeat
+_online = {}
+
+def _handle_acc_heartbeat(conn, d):
+    key     = str(d.get('username', '')).strip().lower()
+    pw_hash = str(d.get('password', ''))
+    with _acc_lock:
+        accs = _acc_load()
+        acc  = accs.get(key)
+    if acc and acc.get('password') == pw_hash:
+        _online[key] = time.monotonic()
+        _send(conn, 'acc_ok', {})
+    else:
+        _send(conn, 'acc_err', {'reason': 'auth'})
+    conn.close()
+
+def _handle_acc_friend_add(conn, d):
+    key     = str(d.get('username', '')).strip().lower()
+    pw_hash = str(d.get('password', ''))
+    friend  = str(d.get('friend', '')).strip().lower()
+
+    if not friend or friend == key:
+        _send(conn, 'acc_err', {'reason': 'Ongeldige vriend.'}); conn.close(); return
+
+    with _acc_lock:
+        accs = _acc_load()
+        acc  = accs.get(key)
+        if not acc or acc.get('password') != pw_hash:
+            _send(conn, 'acc_err', {'reason': 'Authenticatie mislukt.'}); conn.close(); return
+        if friend not in accs:
+            _send(conn, 'acc_err', {'reason': 'Speler niet gevonden.'}); conn.close(); return
+        friends = acc.setdefault('friends', [])
+        if friend in friends:
+            _send(conn, 'acc_err', {'reason': 'Al vrienden.'}); conn.close(); return
+        if len(friends) >= 50:
+            _send(conn, 'acc_err', {'reason': 'Vriendenlijst vol (max 50).'}); conn.close(); return
+        friends.append(friend)
+        _acc_save(accs)
+
+    _send(conn, 'acc_ok', {})
+    conn.close()
+
+def _handle_acc_friend_remove(conn, d):
+    key     = str(d.get('username', '')).strip().lower()
+    pw_hash = str(d.get('password', ''))
+    friend  = str(d.get('friend', '')).strip().lower()
+
+    with _acc_lock:
+        accs = _acc_load()
+        acc  = accs.get(key)
+        if not acc or acc.get('password') != pw_hash:
+            _send(conn, 'acc_err', {'reason': 'Authenticatie mislukt.'}); conn.close(); return
+        friends = acc.get('friends', [])
+        if friend in friends:
+            friends.remove(friend)
+            _acc_save(accs)
+
+    _send(conn, 'acc_ok', {})
+    conn.close()
+
+def _handle_acc_friends_get(conn, d):
+    key     = str(d.get('username', '')).strip().lower()
+    pw_hash = str(d.get('password', ''))
+
+    with _acc_lock:
+        accs = _acc_load()
+        acc  = accs.get(key)
+        if not acc or acc.get('password') != pw_hash:
+            _send(conn, 'acc_err', {'reason': 'Authenticatie mislukt.'}); conn.close(); return
+
+        now     = time.monotonic()
+        result  = []
+        for fkey in acc.get('friends', []):
+            facc = accs.get(fkey)
+            if not facc:
+                continue
+            online = (now - _online.get(fkey, 0)) < 60
+            result.append({
+                'username': facc['username'],
+                'online':   online,
+                'stats':    facc.get('stats', {}),
+            })
+
+    _send(conn, 'acc_ok', {'friends': result})
+    conn.close()
+
 def _handle_acc_sync(conn, d):
     key     = str(d.get('username', '')).strip().lower()
     pw_hash = str(d.get('password', ''))
@@ -355,9 +441,13 @@ def _handle(conn, addr):
     elif t == 'rl_data':      _handle_data(conn, d)
     elif t == 'rl_join':      _handle_join(conn, d)
     elif t == 'rl_list':      _handle_list(conn)
-    elif t == 'acc_register': _handle_acc_register(conn, d)
-    elif t == 'acc_login':    _handle_acc_login(conn, d)
-    elif t == 'acc_sync':     _handle_acc_sync(conn, d)
+    elif t == 'acc_register':     _handle_acc_register(conn, d)
+    elif t == 'acc_login':        _handle_acc_login(conn, d)
+    elif t == 'acc_sync':         _handle_acc_sync(conn, d)
+    elif t == 'acc_heartbeat':    _handle_acc_heartbeat(conn, d)
+    elif t == 'acc_friend_add':   _handle_acc_friend_add(conn, d)
+    elif t == 'acc_friend_remove':_handle_acc_friend_remove(conn, d)
+    elif t == 'acc_friends_get':  _handle_acc_friends_get(conn, d)
     else:
         conn.close()
 

@@ -12,6 +12,7 @@ import json
 import os
 import socket
 import threading
+import time
 from datetime import datetime
 
 _DATA_DIR      = os.path.join(os.getcwd(), 'accounts')
@@ -125,6 +126,7 @@ def register(username: str, password: str):
             account = d['account']
             _saveLocalCache(account, pw_hash)
             _saveSession(account['username'])
+            startHeartbeat()
             return True, account
         return False, 'Onverwacht serverantwoord.'
     except Exception:
@@ -156,11 +158,15 @@ def login(username: str, password: str):
             account = d['account']
             _saveLocalCache(account, pw_hash)
             _saveSession(account['username'])
+            startHeartbeat()
             return True, account
         return False, 'Onverwacht serverantwoord.'
     except Exception:
         # Server niet bereikbaar — val terug op local cache
-        return _loginLocal(key, password)
+        ok, acc = _loginLocal(key, password)
+        if ok:
+            startHeartbeat()
+        return ok, acc
 
 
 def _migrateToServer(local_acc: dict) -> None:
@@ -236,6 +242,93 @@ def _syncStats(username_key: str, pw_hash: str, stats: dict) -> None:
         }, timeout=10.0)
     except Exception:
         pass  # offline — local al bijgewerkt, synct volgende keer
+
+
+# ── Online presence ───────────────────────────────────────────────────────────
+
+_heartbeat_running = False
+_heartbeat_lock    = threading.Lock()
+
+
+def startHeartbeat() -> None:
+    """Start een achtergrond-thread die elke 30 seconden een heartbeat stuurt.
+    Stopt automatisch als de gebruiker uitlogt. Veilig om meerdere keren te
+    roepen — start alleen één thread tegelijk."""
+    global _heartbeat_running
+    with _heartbeat_lock:
+        if _heartbeat_running:
+            return
+        _heartbeat_running = True
+
+    def _work():
+        global _heartbeat_running
+        while True:
+            user = getActiveUser()
+            if not user:
+                with _heartbeat_lock:
+                    _heartbeat_running = False
+                return
+            try:
+                _relayCall('acc_heartbeat', {
+                    'username': user['username'].lower(),
+                    'password': user.get('password', ''),
+                }, timeout=5.0)
+            except Exception:
+                pass
+            time.sleep(30)
+
+    threading.Thread(target=_work, daemon=True).start()
+
+
+# ── Friends ───────────────────────────────────────────────────────────────────
+
+def getFriends() -> list:
+    """Haal vriendenlijst op van de server. Elk item: {username, online, stats}.
+    Geeft [] bij fout of geen verbinding."""
+    user = getActiveUser()
+    if not user:
+        return []
+    try:
+        t, d = _relayCall('acc_friends_get', {
+            'username': user['username'].lower(),
+            'password': user.get('password', ''),
+        })
+        return d.get('friends', []) if t == 'acc_ok' else []
+    except Exception:
+        return []
+
+
+def addFriend(friend_username: str):
+    """Returns (True, '') of (False, error_str)."""
+    user = getActiveUser()
+    if not user:
+        return False, 'Niet ingelogd.'
+    try:
+        t, d = _relayCall('acc_friend_add', {
+            'username': user['username'].lower(),
+            'password': user.get('password', ''),
+            'friend':   friend_username.strip().lower(),
+        })
+        if t == 'acc_err':
+            return False, d.get('reason', 'Mislukt.')
+        return True, ''
+    except Exception:
+        return False, 'Geen verbinding met de server.'
+
+
+def removeFriend(friend_username: str) -> None:
+    """Verwijder vriend (best-effort, geen foutmelding)."""
+    user = getActiveUser()
+    if not user:
+        return
+    try:
+        _relayCall('acc_friend_remove', {
+            'username': user['username'].lower(),
+            'password': user.get('password', ''),
+            'friend':   friend_username.strip().lower(),
+        }, timeout=5.0)
+    except Exception:
+        pass
 
 
 def setAvatar(username: str, path: str) -> None:
