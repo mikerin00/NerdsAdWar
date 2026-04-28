@@ -32,10 +32,6 @@ def aiLogRecent(n=16):
     return result
 
 
-def aiLogAll():
-    return list(_entries)
-
-
 def aiLogWrite(path='ai_log.txt'):
     """Write the full log to a text file."""
     with open(path, 'w', encoding='utf-8') as f:

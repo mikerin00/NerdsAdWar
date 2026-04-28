@@ -4,6 +4,7 @@
 import hashlib
 import json
 import os
+from datetime import date
 
 _DATA_DIR      = os.path.join(os.getcwd(), 'accounts')
 _ACCOUNTS_FILE = os.path.join(_DATA_DIR, 'accounts.json')
@@ -72,6 +73,7 @@ def register(username: str, password: str):
         'username': name,
         'password': pw_hash,
         'stats':    _defaultStats(),
+        'created':  date.today().strftime('%d-%m-%Y'),
     }
     accounts[key] = account
     _saveAccounts(accounts)

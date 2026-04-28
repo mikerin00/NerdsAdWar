@@ -42,11 +42,7 @@ COMMANDER_HP_BOOST     = 0.012 # extra HP regen per frame for nearby allies (≈
 # Territory: how far from a friendly supply source a cell is considered "owned"
 TERR_CLAIM_RADIUS = 220
 
-# ── Multiplayer player colors ────────────────────────────────────────────────
-# Each slot in MP picks a "paint" from this palette; the renderer shades the
-# unit variants (heavy/cav/art) relative to the chosen base color.
-# Quick-chat emote bubbles used in multiplayer scoreboard rows.
-# Pressed via T-held + number key (1..len).
+# Quick-chat emote bubbles — multiplayer scoreboard rows, T-held + number key (1..len).
 EMOTE_TEXTS = ["GG", "WP", "?!", "Help!", ":)", ">:("]
 
 
@@ -67,6 +63,9 @@ def teamOfSlot(slot, mode):
     return 'player' if slot < n // 2 else 'enemy'
 
 
+# ── Multiplayer player colors ────────────────────────────────────────────────
+# Each slot picks a paint from this palette; the renderer shades heavy/cav/art
+# variants relative to the chosen base color.
 PLAYER_COLORS = [
     ('BLUE',   (40,  100, 230)),
     ('RED',    (215,  45,  55)),

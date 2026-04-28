@@ -107,7 +107,7 @@ class AccountLoginScreen:
         self._password2  = ''        # confirm (register only)
         self._activeField = 'user'  # 'user' | 'pass' | 'pass2'
         self._error      = ''
-        self._pending    = False     # True while server call is in flight
+        self._pending    = False
 
         cx = SCREEN_WIDTH  // 2
         cy = SCREEN_HEIGHT // 2
@@ -267,13 +267,12 @@ class AccountLoginScreen:
             surf.blit(et, (cx - et.get_width() // 2,
                            self._btn_action.y - 26))
 
-        # Action button (or "Verbinden..." spinner when pending)
         btn_y_base = cy + (150 if self._mode == 'register' else 130)
         btn_rect = pygame.Rect(cx - 80, btn_y_base, 160, 44)
         if self._pending:
             dots = '.' * ((self.tick // 20) % 4)
             pf  = _font(18)
-            pt  = pf.render(f'Verbinden{dots}', True, _GOLD)
+            pt  = pf.render(f'Laden{dots}', True, _GOLD)
             surf.blit(pt, (cx - pt.get_width() // 2,
                            btn_rect.centery - pt.get_height() // 2))
         else:
@@ -295,10 +294,6 @@ class AccountLoginScreen:
 
         pygame.display.flip()
 
-
-# ══════════════════════════════════════════════════════════════════════════════
-# AccountProfileScreen
-# ══════════════════════════════════════════════════════════════════════════════
 
 # ══════════════════════════════════════════════════════════════════════════════
 # FriendsScreen
@@ -534,6 +529,10 @@ _STAT_LABELS = [
     ('record_wave',     'Record golf (Last Stand)'),
 ]
 
+
+# ══════════════════════════════════════════════════════════════════════════════
+# AccountProfileScreen
+# ══════════════════════════════════════════════════════════════════════════════
 
 class AccountProfileScreen:
     """Full-page profile / stats screen.

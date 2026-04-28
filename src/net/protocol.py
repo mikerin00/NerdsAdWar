@@ -12,14 +12,12 @@ PROTOCOL_VERSION = 1
 DEFAULT_PORT     = 50777
 
 # Message types (kept short — they're sent every snapshot)
-MSG_HELLO    = 'hi'    # initial greeting from each side: protocol version + role
-MSG_LOBBY    = 'lob'   # lobby state: ready flags, seed, biome, etc.
-MSG_READY    = 'rdy'   # toggle ready in lobby
-MSG_PICK     = 'pick'  # client picks a color index (lobby only)
-MSG_START    = 'go'    # host signals: game is starting
-MSG_SNAPSHOT = 'snap'  # (Phase 2) host → client: world state
-MSG_COMMAND  = 'cmd'   # (Phase 3) client → host: player input
-MSG_BYE      = 'bye'   # graceful disconnect
+MSG_HELLO = 'hi'    # initial greeting from each side: protocol version + role
+MSG_LOBBY = 'lob'   # lobby state: ready flags, seed, biome, etc.
+MSG_READY = 'rdy'   # toggle ready in lobby
+MSG_PICK  = 'pick'  # client picks a color index (lobby only)
+MSG_START = 'go'    # host signals: game is starting
+MSG_BYE   = 'bye'   # graceful disconnect
 
 
 class ProtocolError(Exception):

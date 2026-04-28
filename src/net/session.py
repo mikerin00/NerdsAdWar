@@ -185,10 +185,6 @@ class HostServer:
             pass
 
 
-# Backwards-compat alias — older code referred to HostListener.
-HostListener = HostServer
-
-
 # ── Client: connect to host, return a _Session ─────────────────────────────
 
 class ClientConnector:
@@ -231,21 +227,3 @@ class ClientConnector:
         # the 5s timeout will resolve on its own. If already connected, close.
         if self.session:
             self.session.close()
-
-
-# ── Lobby state helper ──────────────────────────────────────────────────────
-
-class LobbyState:
-    """Synchronised lobby state — host is authoritative on seed/biome/mode,
-    both sides report their own ready flag, host broadcasts the merged view."""
-
-    def __init__(self, role: str):
-        self.role        = role
-        self.peerVersion = None
-        self.peerHello   = False
-        self.selfReady   = False
-        self.peerReady   = False
-        self.seed        = None    # set by host
-        self.biome       = None
-        self.difficulty  = None    # ignored in MP for now (no AI)
-        self.gamemode    = 'STANDAARD'
