@@ -42,16 +42,36 @@ def applyMode(mode, logicalW, logicalH):
     """Re-create the display surface in the requested mode. Returns the new
     surface so callers can replace their cached `screen` reference.
 
-    We prefer the SCALED flag so the logical resolution stays constant
-    across toggle (and menu layouts don't need to reflow), but some setups
-    can't create the hardware renderer SCALED needs — fall back to plain
-    flags on failure."""
+    SCALED keeps the logical resolution fixed at logicalW×logicalH regardless
+    of window size, so menus and game UI never need to reflow. Fall back to
+    plain flags when the hardware renderer is unavailable."""
     scaled = getattr(pygame, 'SCALED', 0)
-    base   = pygame.RESIZABLE if mode == WINDOWED else pygame.FULLSCREEN
-    if scaled:
+
+    if mode == FULLSCREEN:
+        if scaled:
+            try:
+                # (0, 0) → pygame uses the native desktop resolution for the
+                # window and scales the logical surface to fit automatically.
+                return pygame.display.set_mode((0, 0), scaled | pygame.FULLSCREEN)
+            except pygame.error:
+                pass
+        return pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+
+    else:  # WINDOWED
+        # Fit the initial window within 90 % of the desktop so it never
+        # overflows on laptops or monitors smaller than logicalW×logicalH.
         try:
-            return pygame.display.set_mode((logicalW, logicalH),
-                                           scaled | base)
-        except pygame.error:
-            pass   # hardware renderer unavailable — fall through to plain
-    return pygame.display.set_mode((logicalW, logicalH), base)
+            sw, sh = pygame.display.get_desktop_sizes()[0]
+        except (AttributeError, IndexError):
+            info   = pygame.display.Info()
+            sw, sh = info.current_w, info.current_h
+        scale = min(sw * 0.90 / logicalW, sh * 0.90 / logicalH, 1.0)
+        win_w = max(int(logicalW * scale), 320)
+        win_h = max(int(logicalH * scale), 180)
+        if scaled:
+            try:
+                return pygame.display.set_mode((win_w, win_h),
+                                               scaled | pygame.RESIZABLE)
+            except pygame.error:
+                pass
+        return pygame.display.set_mode((win_w, win_h), pygame.RESIZABLE)
