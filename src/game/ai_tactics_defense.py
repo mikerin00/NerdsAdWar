@@ -17,12 +17,11 @@ class DefensiveTacticsMixin:
         chokes = getattr(self, '_terrainTraits', {}).get('chokepoints', [])
         # If chokepoints exist between us and the enemy, anchor the line there
         ecx    = enemyHq.x
-        usable = [c for c in chokes if ecx - 450 < c[0] < ecx - 100]
+        usable = [c for c in chokes if ecx - 600 < c[0] < ecx - 100]
         if usable:
-            # Anchor line at the chokepoint X
             line_x = sum(c[0] for c in usable) / len(usable)
         else:
-            line_x = ecx - 280
+            line_x = ecx - 500
         units  = sorted(inf + cav, key=lambda u: u.y)
         for i, u in enumerate(units):
             pos  = _bestHighGround(terrain, line_x, H * (i + 1) / (len(units) + 1), W, H, radius=140)
@@ -113,11 +112,11 @@ class DefensiveTacticsMixin:
             return
         chokes = getattr(self, '_terrainTraits', {}).get('chokepoints', [])
         ecx    = enemyHq.x
-        usable = [c for c in chokes if ecx - 500 < c[0] < ecx - 100]
+        usable = [c for c in chokes if ecx - 620 < c[0] < ecx - 100]
         if usable:
             trigger_x = sum(c[0] for c in usable) / len(usable)
         else:
-            trigger_x = ecx - 350
+            trigger_x = ecx - 510
         player_crossed = any(p.x < trigger_x for p in players) if players else False
         if player_crossed:
             _pairAttack(inf, players, terrain)
@@ -127,7 +126,7 @@ class DefensiveTacticsMixin:
                     u.attackTarget = near
                     _moveToSafe(u, terrain, near.x, near.y)
         else:
-            line_x = enemyHq.x - 300
+            line_x = enemyHq.x - 480
             units  = sorted(inf + cav, key=lambda u: u.y)
             n      = len(units)
             for i, u in enumerate(units):

@@ -209,6 +209,44 @@ class BattleRolesMixin:
 
         return committed_inf, committed_art
 
+    def _doClaimNeutralOps(self, available_inf, neutralOps, players, terrain, W, H):
+        """Proactively claim unclaimed neutral OPs on the AI's own half.
+        Sends 1 infantry per OP (max 2), skips OPs already covered by a friendly.
+        Returns the remaining mobile infantry after commitment."""
+        own_neutral = [op for op in neutralOps if op.x > W * 0.45]
+        if not own_neutral or not available_inf:
+            return available_inf
+        committed_ids = set()
+        for op in sorted(own_neutral, key=lambda o: -o.x)[:2]:
+            already = sum(1 for u in self.game.units
+                          if u.team == 'enemy' and not u.routing
+                          and _dist(u.x, u.y, op.x, op.y) < 130)
+            if already >= 1:
+                continue
+            free = [u for u in available_inf if id(u) not in committed_ids]
+            if not free:
+                break
+            u = min(free, key=lambda u: _dist(u.x, u.y, op.x, op.y))
+            committed_ids.add(id(u))
+            u.attackTarget = None
+            _moveToSafe(u, terrain, op.x, op.y)
+        return [u for u in available_inf if id(u) not in committed_ids]
+
+    def _doHqOpportunity(self, cavalry, playerHq, players, terrain):
+        """Detach one cavalry toward the player HQ when it is completely unguarded.
+        Returns the remaining cavalry so the tactic fn still gets most of them."""
+        if not cavalry or not playerHq:
+            return cavalry
+        defenders = sum(1 for p in players
+                        if _dist(p.x, p.y, playerHq.x, playerHq.y) < 350)
+        if defenders > 0:
+            return cavalry
+        raider = min(cavalry, key=lambda u: _dist(u.x, u.y, playerHq.x, playerHq.y))
+        raider.attackTarget = None
+        _moveToSafe(raider, terrain, playerHq.x, playerHq.y)
+        aiLog(f"HQ RAID: cavalry detached toward unguarded player HQ")
+        return [u for u in cavalry if u is not raider]
+
     def _doReinforce(self, units, op, players, terrain):
         for u in units:
             u.attackTarget = None

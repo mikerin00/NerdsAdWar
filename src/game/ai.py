@@ -649,6 +649,13 @@ class EnemyAI(BattleRolesMixin,
         mobile_inf = infantry[HQ_GUARD_COUNT:]
         self._doGuardHq(hq_guards, players, enemyHq, terrain, W, H)
 
+        # Claim neutral OPs on own half before the tactic spends the mobile pool.
+        # Skip on pure-rush tactics that need every body for the push.
+        if self._tactic not in ('BLITZKRIEG', 'CAVALRY_RAID', 'STEAMROLLER',
+                                'CAVALRY_EXPLOIT'):
+            mobile_inf = self._doClaimNeutralOps(
+                mobile_inf, neutralOps, players, terrain, W, H)
+
         # Claim valuable chokepoints before the tactic spends the mobile pool.
         # Skips entirely on offensive-only tactics that need every body for the push.
         if self._tactic not in ('BLITZKRIEG', 'CAVALRY_RAID', 'STEAMROLLER',
@@ -685,6 +692,10 @@ class EnemyAI(BattleRolesMixin,
         self._doArtillery(artillery, art_guards, mobile_inf, players, terrain, W, H)
         self._counterSquares(artillery, players)
         self._doHeavyInfantryRole(heavy_inf, players, enemyHq, terrain, self._tactic)
+
+        # Opportunistic HQ push: detach 1 cavalry toward an unguarded player HQ.
+        # Runs before the tactic fn so the raider is excluded from tactic cavalry pool.
+        cavalry = self._doHqOpportunity(cavalry, playerHq, players, terrain)
 
         fn = self._tacticMap().get(self._tactic)
         if fn:

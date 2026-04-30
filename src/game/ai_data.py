@@ -30,13 +30,13 @@ PERSONALITY_TRAITS = {
     'DEFENSIVE': {
         'abandon_loss':   0.12,
         'abandon_stuck':  5,
-        'fallback_ratio': 0.62,
+        'fallback_ratio': 0.52,
         'survival_style': 'ANCHOR',
     },
     'OPPORTUNIST': {
         'abandon_loss':   0.14,
         'abandon_stuck':  4,
-        'fallback_ratio': 0.65,
+        'fallback_ratio': 0.55,
         'survival_style': 'FADE',
     },
     'BALANCED': {
