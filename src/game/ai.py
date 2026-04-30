@@ -250,34 +250,45 @@ class EnemyAI(BattleRolesMixin,
         players  = [u for u in self.game.units if u.team == 'player']
         playerHq = next((h for h in self.game.headquarters if h.team == 'player'), None)
         terrain  = self.game.terrain
+        W, H     = self.game.mapWidth, self.game.mapHeight
         if not enemies or not playerHq:
             return
 
         hx, hy = playerHq.x, playerHq.y
+        margin  = 90  # min distance from top/bottom border
 
-        for u in enemies:
-            if u.routing:
-                continue
-            # Artillery: hang back and bombard
-            if u.unitType == 'artillery':
-                art_x = min(hx + 380, self.game.mapWidth - 80)
-                art_y = hy + (hash(id(u)) % 300 - 150)
-                art_y = max(60, min(self.game.mapHeight - 60, art_y))
-                _moveToSafe(u, terrain, art_x, art_y)
-                continue
+        # Separate artillery from units that need to advance
+        art    = [u for u in enemies if not u.routing and u.unitType == 'artillery']
+        mobile = [u for u in enemies if not u.routing and u.unitType != 'artillery']
 
-            # Cavalry: flank charge
-            if u.unitType == 'cavalry':
-                side  = 1 if (hash(id(u)) % 2 == 0) else -1
-                flank_y = hy + side * 200
-                flank_y = max(60, min(self.game.mapHeight - 60, flank_y))
-                _moveToSafe(u, terrain, hx + 20, flank_y)
-                continue
+        # Assign each mobile unit a dedicated Y-lane spread evenly across the
+        # map height. Sorting by current Y keeps lane assignments stable between
+        # ticks so units don't constantly swap lanes.
+        n = max(len(mobile), 1)
+        for i, u in enumerate(sorted(mobile, key=lambda u: u.y)):
+            lane_y = margin + (H - 2 * margin) * (i + 0.5) / n
 
-            # Infantry / heavy infantry: direct rush with slight vertical spread
-            spread = (hash(id(u)) % 280) - 140
-            target_y = max(60, min(self.game.mapHeight - 60, hy + spread))
-            _moveToSafe(u, terrain, hx + 30, target_y)
+            # Rescue units stuck against the top/bottom border: clear their
+            # path so the next _move() call triggers a fresh A* search.
+            if u.y < margin or u.y > H - margin or getattr(u, '_stuckFrames', 0) > 45:
+                u._waypoints    = []
+                u._pathCooldown = 0
+
+            # Attack a nearby player unit instead of walking past them
+            near = min(players, key=lambda p: _dist(u.x, u.y, p.x, p.y)) if players else None
+            if near and _dist(u.x, u.y, near.x, near.y) < 200:
+                u.attackTarget = near
+                _moveToSafe(u, terrain, near.x, near.y)
+            else:
+                u.attackTarget = None
+                offset = 20 if u.unitType == 'cavalry' else 30
+                _moveToSafe(u, terrain, hx + offset, lane_y)
+
+        for u in art:
+            art_x = min(hx + 380, W - 80)
+            art_y = hy + (hash(id(u)) % 300 - 150)
+            art_y = max(60, min(H - 60, art_y))
+            _moveToSafe(u, terrain, art_x, art_y)
 
     def _updateAssault(self):
         """Assault AI: defenders sit on their assigned keypoint and only move

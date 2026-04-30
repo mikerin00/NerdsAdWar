@@ -1,2 +1,2 @@
 # Versienummer — wordt automatisch bijgehouden door build.bat
-VERSION = "v1.36"
+VERSION = "v1.37"

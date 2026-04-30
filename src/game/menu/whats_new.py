@@ -20,10 +20,13 @@ from src.game.menu._common import (
 # ── Changelog ─────────────────────────────────────────────────────────────
 # Add a new key here for every release that has player-facing changes.
 CHANGELOG = {
-    "v1.36": [
-        "Accounts werken nu volledig lokaal — geen serververbinding nodig om in te loggen",
-        "Registreren en inloggen werkt altijd, ook zonder internet",
-        "Campaign en tutorial voortgang opgeslagen per account",
+    "v1.37": [
+        "Venster schaalt nu automatisch mee met elk schermformaat — geen overflow meer op kleine monitors",
+        "DEFENSIVE en OPPORTUNIST AI sturen cavalerie nu naar het midveld in plaats van de achterlinie",
+        "AI claimt neutrale outposts op eigen helft voor extra versterkingen",
+        "AI stuurt cavalerie naar het vijandige HQ als dat onbewacht is",
+        "Waves: vijanden verspreiden zich nu gelijkmatig over de hele kaart — minder clustering",
+        "Waves: vijanden die vastlopen tegen de kaartrand worden automatisch herrouted naar het HQ",
     ],
     "v1.34": [
         "Custom artwork: menu background, all 5 campaign worlds, and all 9 biome map previews",

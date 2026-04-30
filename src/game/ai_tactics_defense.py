@@ -22,15 +22,24 @@ class DefensiveTacticsMixin:
             line_x = sum(c[0] for c in usable) / len(usable)
         else:
             line_x = ecx - 500
-        units  = sorted(inf + cav, key=lambda u: u.y)
-        for i, u in enumerate(units):
-            pos  = _bestHighGround(terrain, line_x, H * (i + 1) / (len(units) + 1), W, H, radius=140)
+        inf_s = sorted(inf, key=lambda u: u.y)
+        for i, u in enumerate(inf_s):
+            pos  = _bestHighGround(terrain, line_x, H * (i + 1) / (len(inf_s) + 1), W, H, radius=140)
             near = min(players, key=lambda p: _dist(u.x, u.y, p.x, p.y)) if players else None
             if near and _dist(u.x, u.y, near.x, near.y) < 200:
                 u.attackTarget = near
             else:
                 u.attackTarget = None
                 _moveToSafe(u, terrain, pos[0], pos[1])
+        pcx, pcy = _centroid(players)
+        fwd_x = (line_x + pcx) / 2
+        for u in cav:
+            near = min(players, key=lambda p: _dist(u.x, u.y, p.x, p.y)) if players else None
+            if near and _dist(u.x, u.y, near.x, near.y) < 180 and _terrainScore(terrain, u.x, u.y) >= 0:
+                u.attackTarget = near
+            else:
+                u.attackTarget = None
+                _moveToSafe(u, terrain, fwd_x, pcy)
 
     def _tRefuseFlank(self, inf, cav, players, playerHq, enemyHq,
                       neutralOps, enemyOps, terrain, W, H):
@@ -127,13 +136,22 @@ class DefensiveTacticsMixin:
                     _moveToSafe(u, terrain, near.x, near.y)
         else:
             line_x = enemyHq.x - 480
-            units  = sorted(inf + cav, key=lambda u: u.y)
-            n      = len(units)
-            for i, u in enumerate(units):
+            inf_s  = sorted(inf, key=lambda u: u.y)
+            n      = len(inf_s)
+            for i, u in enumerate(inf_s):
                 ty  = H * (i + 1) / (n + 1)
                 pos = _bestHighGround(terrain, line_x, ty, W, H, radius=120)
                 u.attackTarget = None
                 _moveToSafe(u, terrain, pos[0], pos[1])
+            pcx, pcy = _centroid(players)
+            fwd_x = (line_x + pcx) / 2
+            for u in cav:
+                near = min(players, key=lambda p: _dist(u.x, u.y, p.x, p.y)) if players else None
+                if near and _dist(u.x, u.y, near.x, near.y) < 180 and _terrainScore(terrain, u.x, u.y) >= 0:
+                    u.attackTarget = near
+                else:
+                    u.attackTarget = None
+                    _moveToSafe(u, terrain, fwd_x, pcy)
 
     def _tBridgeControl(self, inf, cav, players, playerHq, enemyHq,
                         neutralOps, enemyOps, terrain, W, H):
