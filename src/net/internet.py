@@ -78,15 +78,21 @@ class InternetHost:
         self._cancel    = False
         self.error      = None
         self.allowedClients = maxClients
+        self.slotOrder      = list(range(1, maxClients + 1))
 
         self._thread = threading.Thread(target=self._register, daemon=True)
         self._thread.start()
 
     def _next_free_slot(self):
-        for s in range(1, self.allowedClients + 1):
-            if s not in self._assigned or not self._assigned[s].alive:
-                return s
+        for s in self.slotOrder:
+            if s <= self.allowedClients:
+                if s not in self._assigned or not self._assigned[s].alive:
+                    return s
         return None
+
+    def setSlotOrder(self, order: list):
+        with self._lock:
+            self.slotOrder = list(order)
 
     def _register(self):
         try:

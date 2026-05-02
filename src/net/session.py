@@ -104,6 +104,9 @@ class HostServer:
         # Current dynamic limit (≤ maxClients). Lobby shrinks/grows this when
         # the host switches game-mode so 1v1 won't park a joiner in slot 2.
         self.allowedClients = maxClients
+        # Preferred slot assignment order. Default is sequential; lobby sets
+        # this to a balanced order so teams fill evenly instead of left-first.
+        self.slotOrder = list(range(1, maxClients + 1))
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._sock.bind(('0.0.0.0', port))
@@ -118,10 +121,15 @@ class HostServer:
         self._thread.start()
 
     def _nextFreeSlot(self):
-        for s in range(1, self.allowedClients + 1):
-            if s not in self._assigned or not self._assigned[s].alive:
-                return s
+        for s in self.slotOrder:
+            if s <= self.allowedClients:
+                if s not in self._assigned or not self._assigned[s].alive:
+                    return s
         return None
+
+    def setSlotOrder(self, order: list):
+        with self._lock:
+            self.slotOrder = list(order)
 
     def setAllowedClients(self, n: int):
         """Lobby calls this on mode-change so 1v1 only hands out slot 1

@@ -103,6 +103,21 @@ def _button(surf, rect, label, mx, my, enabled=True):
     return _drawButton(surf, rect, label, mx, my, enabled=enabled)
 
 
+def _balancedSlotOrder(total_slots=8):
+    """Return slot assignment order that fills teams evenly.
+    Host is always slot 0 (Team 1), so first joiner goes to Team 2.
+    e.g. 4v4: [4, 1, 5, 2, 6, 3, 7]
+    """
+    half   = total_slots // 2
+    team1  = list(range(1, half))           # non-host Team-1 slots
+    team2  = list(range(half, total_slots)) # all Team-2 slots
+    order  = []
+    for i in range(max(len(team1), len(team2))):
+        if i < len(team2): order.append(team2[i])
+        if i < len(team1): order.append(team1[i])
+    return order
+
+
 TEAM_COLOR = {'player': (70, 130, 200), 'enemy': (200, 80, 80)}
 
 # Default color preference order per (mode, slot). First entry = preferred
@@ -547,6 +562,12 @@ class _HostLobby:
         self.beacon   = HostBeacon(self.lobbyName, DEFAULT_PORT)
         self.internet = InternetHost(self.lobbyName, maxClients=7)
 
+        _order = _balancedSlotOrder(total_slots=8)
+        if self.server:
+            self.server.setSlotOrder(_order)
+        if self.internet:
+            self.internet.setSlotOrder(_order)
+
         _saved = _loadLobbySettings()
         # slot → (name, ready, colorIdx); slot 0 = me (host).
         self.slots = {0: {'name': myName, 'ready': False, 'alive': True,
@@ -663,6 +684,38 @@ class _HostLobby:
         self.bot_slots        = new_bots
         self._broadcastLobby()
 
+    def _moveSlot(self, from_slot, to_slot):
+        """Move a player (human or bot) from from_slot to to_slot."""
+        if from_slot == 0:
+            return
+        info  = self.slots.pop(from_slot, None)
+        sess  = self.sessions_by_slot.pop(from_slot, None)
+        isbot = from_slot in self.bot_slots
+        self.bot_slots.discard(from_slot)
+        if info is not None:
+            self.slots[to_slot] = info
+        if sess is not None:
+            sess.slot = to_slot
+            self.sessions_by_slot[to_slot] = sess
+        if isbot:
+            self.bot_slots.add(to_slot)
+        self._broadcastLobby()
+
+    def _switchTeam(self, slot):
+        """Move a player to a free slot on the opposite team."""
+        if slot == 0:
+            return
+        n       = slotCountForMode(self.modeKey)
+        half    = n // 2
+        is_team1 = slot < half
+        candidates = (range(half, n) if is_team1 else range(1, half))
+        for target in candidates:
+            occupied = (target in self.slots and
+                        self.slots[target].get('alive', False))
+            if not occupied:
+                self._moveSlot(slot, target)
+                return
+
     def _dropSession(self, slot):
         self.slots.pop(slot, None)
         self.sessions_by_slot.pop(slot, None)
@@ -776,6 +829,9 @@ class _HostLobby:
                             self.slots[slot]['ready'] = bool(data.get('ready', False))
                             self._broadcastLobby()
                         elif mt == MSG_PICK:
+                            if data.get('switch'):
+                                self._switchTeam(slot)
+                                continue
                             idx = int(data.get('idx', 0))
                             idx = max(0, min(len(PLAYER_COLORS) - 1, idx))
                             # Reject if another active slot already has that color
@@ -908,6 +964,7 @@ class _HostLobby:
 
                 swatch_hover = {}     # slot → hovered color idx
                 bot_btn_hover = set()  # slots whose "BOT" button is hovered
+                switch_hover = {}      # slot → Rect for the Switch button
                 for s in displayed:
                     is_active_mode = s in active_slots
                     info = self.slots.get(s, {}) if is_active_mode else {}
@@ -931,6 +988,18 @@ class _HostLobby:
                         swatch_hover[s] = _drawColorSwatches(
                             self.screen, sx, sy, swatch_sz, swatch_gap,
                             sel_idx, mine_here, taken, mx, my)
+
+                    # "Switch" on active human non-host slots (host can move players)
+                    can_switch = (s != 0 and is_active_mode and slot_alive
+                                  and not is_bot and not is_waves
+                                  and m_enabled and not self.slots[0]['ready'])
+                    if can_switch:
+                        r    = slot_rects[s]
+                        sw_r = pygame.Rect(r.x + 8, r.y + 50, 60, 16)
+                        _drawButton(self.screen, sw_r, "Switch", mx, my,
+                                    font_size=12)
+                        if sw_r.collidepoint(mx, my):
+                            switch_hover[s] = sw_r
 
                     # "+ BOT" on every empty non-host slot in any 2+ team mode.
                     can_add_bot = (s != 0 and is_active_mode
@@ -1043,6 +1112,10 @@ class _HostLobby:
                             break
                     if clicked_swatch:
                         pygame.display.flip(); self.clock.tick(60); continue
+                    for s, sw_r in switch_hover.items():
+                        if sw_r.collidepoint(mx, my):
+                            self._switchTeam(s)
+                            break
                     if shuffle_hover and shuffle_enabled:
                         self._shuffleTeams()
                     elif prev_hover:
@@ -1525,6 +1598,18 @@ class _JoinLobby:
                     rdy_hover   = _button(self.screen, ready_rect, rdy_label,
                                           mx, my, enabled=rdy_enabled)
                     back_hover  = _button(self.screen, back_rect, "Back", mx, my)
+
+                    # Switch team button — own non-host slot, not ready, not waves
+                    can_switch_j = (rdy_enabled and self.mySlot is not None
+                                    and self.mySlot != 0 and not is_waves_join
+                                    and self.mySlot in slot_rects)
+                    sw_rect_j = None
+                    if can_switch_j:
+                        r = slot_rects[self.mySlot]
+                        sw_rect_j = pygame.Rect(r.x + 8, r.y + 50, 60, 16)
+                        _drawButton(self.screen, sw_rect_j, "Switch", mx, my,
+                                    font_size=12)
+
                     if click:
                         # Swatch click — pick own color
                         clicked_swatch = False
@@ -1536,7 +1621,11 @@ class _JoinLobby:
                                 break
                         if clicked_swatch:
                             pygame.display.flip(); self.clock.tick(60); continue
-                        if rdy_hover and rdy_enabled:
+                        if (sw_rect_j and sw_rect_j.collidepoint(mx, my)
+                                and can_switch_j):
+                            if self.session and self.session.alive:
+                                self.session.send(MSG_PICK, {'switch': True})
+                        elif rdy_hover and rdy_enabled:
                             self.selfReady = True
                             if self.session:
                                 self.session.send(MSG_READY, {'ready': True})
