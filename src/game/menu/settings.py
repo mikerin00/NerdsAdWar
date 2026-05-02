@@ -54,8 +54,13 @@ class SettingsMenu:
         display_y    = slider_y0 + len(SLIDERS) * slider_dy + 30
         display_rect = pygame.Rect(cx - 220, display_y, 440, 50)
 
-        keys_rect   = pygame.Rect(cx - 220, display_y + 72,  440, 44)
-        report_rect = pygame.Rect(cx - 220, display_y + 128, 440, 44)
+        monitor_count = displaymode.getMonitorCount()
+        has_monitors  = monitor_count > 1
+        mon_offset    = 58 if has_monitors else 0
+        monitor_rect  = pygame.Rect(cx - 220, display_y + 58, 440, 44)
+
+        keys_rect   = pygame.Rect(cx - 220, display_y + 72  + mon_offset, 440, 44)
+        report_rect = pygame.Rect(cx - 220, display_y + 128 + mon_offset, 440, 44)
         back_rect   = pygame.Rect(cx - 90, SCREEN_HEIGHT - 76, 180, 44)
 
         slider_rects = {}
@@ -138,6 +143,15 @@ class SettingsMenu:
                               _PARCHMENT, display_y - 38)
             disp_hover = _drawButton(self.screen, display_rect, label, mx, my)
 
+            # Monitor selector (only when multiple screens are connected)
+            mon_hover = False
+            if has_monitors:
+                cur_mon   = displaymode.loadMonitor()
+                cur_mon   = max(0, min(cur_mon, monitor_count - 1))
+                mon_label = f"Monitor: {cur_mon + 1} van {monitor_count}"
+                mon_hover = _drawButton(self.screen, monitor_rect,
+                                        mon_label, mx, my)
+
             # Keybinds button
             keys_hover = _drawButton(self.screen, keys_rect,
                                      "Keybindings >", mx, my)
@@ -158,6 +172,14 @@ class SettingsMenu:
                 displaymode.saveMode(new_mode)
                 self.screen = displaymode.applyMode(
                     new_mode, SCREEN_WIDTH, SCREEN_HEIGHT)
+                audio.play_sfx('click')
+                continue
+
+            if click and mon_hover:
+                next_mon = (displaymode.loadMonitor() + 1) % monitor_count
+                displaymode.saveMonitor(next_mon)
+                self.screen = displaymode.applyMode(
+                    cur_mode, SCREEN_WIDTH, SCREEN_HEIGHT)
                 audio.play_sfx('click')
                 continue
 

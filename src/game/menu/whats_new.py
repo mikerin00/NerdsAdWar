@@ -20,7 +20,13 @@ from src.game.menu._common import (
 # ── Changelog ─────────────────────────────────────────────────────────────
 # Add a new key here for every release that has player-facing changes.
 CHANGELOG = {
-    "v1.37": [
+    "v1.39": [
+        "Fix: online lobbies zijn weer zichtbaar — LAN- en internetlobbies worden gecombineerd getoond zonder duplicaten",
+        "Fix: profielfoto kiezen werkt nu correct — bestandskeuze opent altijd zichtbaar, ook in fullscreen",
+        "Fix: fullscreen op meervoudige monitoren toont nu de juiste resolutie — geen verkeerde schaalverdeling meer",
+        "Nieuw: Monitor-instelling in Settings om te kiezen op welk scherm het spel verschijnt (zichtbaar bij meerdere monitors)",
+    ],
+    "v1.38": [
         "Venster schaalt nu automatisch mee met elk schermformaat — geen overflow meer op kleine monitors",
         "DEFENSIVE en OPPORTUNIST AI sturen cavalerie nu naar het midveld in plaats van de achterlinie",
         "AI claimt neutrale outposts op eigen helft voor extra versterkingen",

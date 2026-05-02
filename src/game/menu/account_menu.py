@@ -586,9 +586,17 @@ class AccountProfileScreen:
             ]
 
         try:
+            hwnd = pygame.display.get_wm_info().get('window', 0)
+
+            # In fullscreen the pygame window covers the dialog — iconify first.
+            is_fullscreen = bool(pygame.display.get_surface().get_flags() & pygame.FULLSCREEN)
+            if is_fullscreen:
+                pygame.display.iconify()
+
             buf = ctypes.create_unicode_buffer(32768)
             ofn = _OFN()
             ofn.lStructSize = ctypes.sizeof(_OFN)
+            ofn.hwndOwner   = hwnd
             ofn.lpstrFilter = "Afbeeldingen\0*.png;*.jpg;*.jpeg;*.bmp;*.gif\0Alle bestanden\0*.*\0"
             ofn.lpstrFile   = buf
             ofn.nMaxFile    = len(buf)
@@ -599,6 +607,10 @@ class AccountProfileScreen:
                 if path and os.path.isfile(path):
                     accounts.setAvatar(username, path)
                     self._avatarCache = None
+
+            if is_fullscreen:
+                pygame.display.toggle_fullscreen()
+                pygame.display.toggle_fullscreen()
         except Exception:
             pass
 

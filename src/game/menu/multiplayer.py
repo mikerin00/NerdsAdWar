@@ -24,7 +24,7 @@ from src.net.protocol import (
     MSG_HELLO, MSG_LOBBY, MSG_READY, MSG_START, MSG_PICK,
 )
 from src.net.session import HostServer, ClientConnector
-from src.net.discovery import HostBeacon
+from src.net.discovery import HostBeacon, scan as _lanScan
 from src.net.internet import InternetHost, InternetClient, fetchLobbies
 
 
@@ -293,7 +293,11 @@ class MultiplayerMenu:
         self._nextScan = time.monotonic() + _SCAN_INTERVAL
 
         def _worker():
-            self._lobbies  = fetchLobbies(timeout=3.0)
+            lan      = _lanScan(timeout=2.0)
+            internet = fetchLobbies(timeout=3.0)
+            lan_names = {l['name'] for l in lan}
+            internet  = [i for i in internet if i['name'] not in lan_names]
+            self._lobbies  = lan + internet
             self._scanning = False
 
         threading.Thread(target=_worker, daemon=True).start()
@@ -1159,7 +1163,11 @@ class _JoinLobby:
         self._scanDone    = False
         self._scanResults = []
         def _worker():
-            self._scanResults = fetchLobbies(timeout=3.0)
+            lan      = _lanScan(timeout=2.0)
+            internet = fetchLobbies(timeout=3.0)
+            lan_names = {l['name'] for l in lan}
+            internet  = [i for i in internet if i['name'] not in lan_names]
+            self._scanResults = lan + internet
             self._scanDone    = True
         self._scanThread = threading.Thread(target=_worker, daemon=True)
         self._scanThread.start()
